@@ -195,3 +195,12 @@ if raw_df is not None:
     for i, y in enumerate(years):
         with tabs[i + 1]:
             render_tab(raw_df[raw_df['연도'] == y], f"{y}년도", valid_cols)
+
+
+# 기존 코드의 fig.update_layout 부분에 폰트 사이즈 추가
+fig.update_layout(
+    height=400, # 모바일에서는 높이를 550 -> 400 정도로 줄이는 게 한눈에 들어옵니다.
+    font=dict(size=10), # 글씨 크기 축소
+    showlegend=True, 
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+)
