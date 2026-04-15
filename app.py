@@ -7,7 +7,6 @@ from sklearn.preprocessing import StandardScaler
 
 # ─── 1. 웹페이지 설정 ───────────────────────────────────────────────────────
 st.set_page_config(page_title="PAPS Care+ Real-time Dashboard", layout="wide")
-# ★ 수정: 강원도 -> 강원특별자치도
 st.title("📊 PAPS Care+ : 강원특별자치도 학교 실데이터 AI 분석 시스템")
 
 # ─── 2. 데이터 로드 ──────────────────────────────────────────────────────────
@@ -21,21 +20,28 @@ def load_raw_data():
 
     try:
         df = pd.read_excel(file_path)
-
+        
         def find_col(keywords):
             for c in df.columns:
                 for kw in keywords:
                     if kw in str(c): return c
             return None
 
+        # ★ 수정: 측정 종목의 학술적 분리 (악력 vs 팔굽혀/말아올리기)
         bmi_col      = find_col(['BMI', '비만', '체질량'])
         run_col      = find_col(['왕복', '오래달리기', '심폐'])
-        strength_col = find_col(['악력', '근력'])
+        grip_col     = find_col(['악력'])
+        push_col     = find_col(['팔굽혀', '말아올리기']) 
         flex_col     = find_col(['앉아윗몸', '유연성'])
         jump_col     = find_col(['제자리멀리', '순발력'])
 
         target_cols = {
-            'BMI': bmi_col, '심폐지구력': run_col, '근력': strength_col, '유연성': flex_col, '순발력': jump_col
+            'BMI': bmi_col, 
+            '심폐지구력 (왕복오래달리기)': run_col, 
+            '근력 (악력)': grip_col,
+            '근력 (팔굽혀/말아올리기)': push_col,
+            '유연성 (앉아윗몸)': flex_col, 
+            '순발력 (제자리멀리뛰기)': jump_col
         }
         valid_cols = {k: v for k, v in target_cols.items() if v}
 
@@ -55,7 +61,8 @@ def load_raw_data():
 # ─── 3. 학교별 집계 및 군집 명칭 자동 할당 로직 ──────────────────────────────
 def get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters):
     agg_dict = {v: 'mean' for v in valid_cols.values()}
-    df = tab_df.groupby('순수학교명').agg(agg_dict).dropna(subset=[valid_cols[x_axis], valid_cols[y_axis]]).reset_index().round(1)
+    # 사용자가 선택한 X, Y축 데이터가 없는 학교는 해당 차트에서 자동으로 제외됨 (통계적 오류 방지)
+    df = tab_df.groupby('순수학교명').agg(agg_dict).dropna(subset=[x_axis, y_axis]).reset_index().round(1)
     df.columns = ['학교명'] + list(valid_cols.keys())
 
     # 스케일링 및 군집화
@@ -95,7 +102,6 @@ def render_tab(tab_df, tab_label, valid_cols):
         fig = px.scatter(
             plot_df, x=x_axis, y=y_axis, color='유형', text='학교명',
             hover_name='학교명', color_discrete_map=color_discrete_map,
-            # ★ 수정: 그래프 타이틀에 강원특별자치도 반영
             title=f"🏫 강원특별자치도 {tab_label} 학교별 건강 등급 분포"
         )
         fig.update_traces(textposition='top center', marker=dict(size=18, line=dict(width=2, color='white')))
@@ -106,7 +112,7 @@ def render_tab(tab_df, tab_label, valid_cols):
     st.markdown("---")
     st.write("### 📋 유형별 특성 및 정책 제언")
     
-    sum_df = plot_df.groupby('유형')[metrics].mean().round(1)
+    sum_df = plot_df.groupby('유형')[[x_axis, y_axis]].mean().round(1)
     counts = plot_df['유형'].value_counts()
     
     cols = st.columns(len(sum_df))
@@ -134,8 +140,7 @@ if raw_df is not None:
     tabs = st.tabs(tab_labels)
 
     with tabs[0]:
-        # ★ 수정: 강원도 전체 -> 강원특별자치도 전체
-        render_tab(raw_df, "강원특별자치도 전체", valid_cols)
+        render_tab(raw_df, "전체", valid_cols)
     
     for i, y in enumerate(years):
         with tabs[i+1]:
