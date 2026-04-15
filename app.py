@@ -27,7 +27,7 @@ def load_raw_data():
                     if kw in str(c): return c
             return None
 
-        # ★ 수정: 측정 종목의 학술적 분리 (악력 vs 팔굽혀/말아올리기)
+        # 측정 종목 분리 (악력 vs 팔굽혀/말아올리기)
         bmi_col      = find_col(['BMI', '비만', '체질량'])
         run_col      = find_col(['왕복', '오래달리기', '심폐'])
         grip_col     = find_col(['악력'])
@@ -61,9 +61,19 @@ def load_raw_data():
 # ─── 3. 학교별 집계 및 군집 명칭 자동 할당 로직 ──────────────────────────────
 def get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters):
     agg_dict = {v: 'mean' for v in valid_cols.values()}
-    # 사용자가 선택한 X, Y축 데이터가 없는 학교는 해당 차트에서 자동으로 제외됨 (통계적 오류 방지)
-    df = tab_df.groupby('순수학교명').agg(agg_dict).dropna(subset=[x_axis, y_axis]).reset_index().round(1)
+    
+    # 1. 데이터 먼저 집계
+    df = tab_df.groupby('순수학교명').agg(agg_dict).reset_index().round(1)
+    
+    # 2. 컬럼 이름 예쁘게 변경 (에러 해결 핵심!)
     df.columns = ['학교명'] + list(valid_cols.keys())
+    
+    # 3. 선택한 X, Y축 데이터가 둘 다 있는 학교만 남기기
+    df = df.dropna(subset=[x_axis, y_axis])
+
+    # 4. 방어 로직: 데이터가 너무 적으면 군집화 중단
+    if len(df) < n_clusters:
+        return df
 
     # 스케일링 및 군집화
     X = df[[x_axis, y_axis]]
@@ -71,7 +81,7 @@ def get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters):
     kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
     df['Cluster'] = kmeans.fit_predict(X_scaled)
 
-    # 💡 [핵심 로직] BMI가 높고 체력(Y축)이 낮은 그룹을 찾아 '고위험군'으로 자동 정렬
+    # [핵심 로직] BMI가 높고 체력(Y축)이 낮은 그룹을 찾아 '고위험군'으로 자동 정렬
     sort_metric = 'BMI' if 'BMI' in df.columns else x_axis
     cluster_means = df.groupby('Cluster')[sort_metric].mean().sort_values(ascending=False)
     
@@ -92,10 +102,15 @@ def render_tab(tab_df, tab_label, valid_cols):
     with col_set1:
         st.write("### ⚙️ 분석 지표")
         x_axis = st.selectbox("X축 (주로 BMI)", metrics, index=0, key=f"x_{tab_label}")
-        y_axis = st.selectbox("Y축 (주로 심폐지구력)", metrics, index=min(1, len(metrics)-1), key=f"y_{tab_label}")
+        y_axis = st.selectbox("Y축 (주로 체력지표)", metrics, index=min(1, len(metrics)-1), key=f"y_{tab_label}")
         n_clusters = st.slider("군집 세분화 (개)", 2, 4, 3, key=f"n_{tab_label}")
         
     plot_df = get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters)
+
+    # 데이터 부족 시 안내 문구 출력 후 차트 그리기 중단
+    if plot_df.empty or len(plot_df) < n_clusters:
+        st.warning("⚠️ 선택하신 지표를 동시에 측정한 학교 수가 부족하여 AI 분석을 수행할 수 없습니다. 다른 지표를 선택해 주세요.")
+        return
 
     with col_set2:
         color_discrete_map = {"🔴 고위험군": "#EF5350", "🟠 중점 관리군": "#FFB74D", "🔵 건강 우수군": "#42A5F5", "🟢 일반군": "#66BB6A"}
