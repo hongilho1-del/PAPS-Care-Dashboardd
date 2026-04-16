@@ -11,7 +11,7 @@ st.set_page_config(
     page_title="PAPS Care+ Intelligence",
     page_icon=":material/monitoring:",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 
@@ -21,21 +21,20 @@ st.markdown(
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
 
     :root {
-        --bg: #eef3f7;
-        --panel: rgba(255, 255, 255, 0.82);
-        --panel-strong: #ffffff;
-        --ink: #102437;
-        --muted: #5d7286;
-        --line: rgba(16, 36, 55, 0.10);
-        --navy: #16324f;
-        --blue: #2f6fed;
-        --cyan: #45b9d6;
-        --gold: #e4b04a;
-        --danger: #d24d57;
-        --warning: #f08b37;
-        --success: #26a27b;
-        --info: #377dff;
-        --shadow: 0 24px 60px rgba(18, 42, 66, 0.10);
+        --bg: #f2f6fb;
+        --surface: rgba(255, 255, 255, 0.88);
+        --surface-strong: #ffffff;
+        --stroke: rgba(16, 34, 53, 0.10);
+        --text: #102235;
+        --muted: #607486;
+        --navy: #0f2740;
+        --blue: #2574ea;
+        --teal: #0ea5a4;
+        --amber: #d99a25;
+        --red: #d44b57;
+        --orange: #ef8b2c;
+        --green: #1c9d74;
+        --shadow: 0 24px 60px rgba(15, 39, 64, 0.10);
     }
 
     html, body, [class*="css"] {
@@ -44,290 +43,314 @@ st.markdown(
 
     .stApp {
         background:
-            radial-gradient(circle at top left, rgba(69, 185, 214, 0.18), transparent 32%),
-            radial-gradient(circle at top right, rgba(228, 176, 74, 0.16), transparent 24%),
-            linear-gradient(180deg, #f4f8fb 0%, #edf2f7 100%);
-        color: var(--ink);
+            radial-gradient(circle at 0% 0%, rgba(37,116,234,0.12), transparent 28%),
+            radial-gradient(circle at 100% 0%, rgba(14,165,164,0.10), transparent 24%),
+            linear-gradient(180deg, #f8fbfe 0%, #edf3f8 100%);
+        color: var(--text);
     }
 
-    #MainMenu, header, footer {
-        visibility: hidden;
-    }
-
-    [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #10263d 0%, #173452 100%);
-        border-right: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    [data-testid="stSidebar"] * {
-        color: #f4f8fb !important;
-    }
-
-    [data-testid="stSidebar"] .stMultiSelect div[data-baseweb="select"] > div,
-    [data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"] > div {
-        background: rgba(255, 255, 255, 0.08) !important;
-        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    #MainMenu, header, footer, [data-testid="stSidebar"] {
+        display: none;
     }
 
     .block-container {
-        padding-top: 2rem;
+        max-width: 1480px;
+        padding-top: 1.4rem;
         padding-bottom: 3rem;
-        max-width: 1440px;
     }
 
-    .hero-shell {
+    div[data-testid="stTabs"] button {
+        border-radius: 999px;
+        padding: 10px 18px;
+        font-weight: 700;
+        color: var(--muted);
+    }
+
+    div[data-testid="stTabs"] button[aria-selected="true"] {
+        background: linear-gradient(135deg, #16324f 0%, #2574ea 100%);
+        color: white;
+    }
+
+    .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        padding: 8px 2px;
+    }
+
+    .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .brand-badge {
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #14304c 0%, #2677f0 100%);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        font-weight: 800;
+        box-shadow: 0 16px 35px rgba(20, 48, 76, 0.26);
+    }
+
+    .brand-copy h1 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+    }
+
+    .brand-copy p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+    }
+
+    .status-chip {
+        border-radius: 999px;
+        padding: 10px 14px;
+        background: rgba(37, 116, 234, 0.08);
+        border: 1px solid rgba(37, 116, 234, 0.12);
+        color: #2759b2;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .hero {
         position: relative;
         overflow: hidden;
-        border-radius: 32px;
-        padding: 34px 38px;
+        border-radius: 34px;
+        padding: 40px;
         background:
-            radial-gradient(circle at 82% 22%, rgba(255,255,255,0.18), transparent 18%),
-            linear-gradient(135deg, #10263d 0%, #1d4b73 55%, #2779a7 100%);
-        color: #f6fbff;
-        box-shadow: 0 28px 70px rgba(13, 31, 48, 0.28);
-        margin-bottom: 24px;
+            radial-gradient(circle at 80% 20%, rgba(255,255,255,0.16), transparent 18%),
+            linear-gradient(130deg, #0f2740 0%, #153e67 50%, #2680b7 100%);
+        color: white;
+        box-shadow: 0 30px 80px rgba(15, 39, 64, 0.22);
+        margin-bottom: 22px;
     }
 
-    .hero-shell::after {
+    .hero::before {
         content: "";
         position: absolute;
-        inset: auto -80px -120px auto;
-        width: 280px;
-        height: 280px;
+        right: -100px;
+        bottom: -100px;
+        width: 300px;
+        height: 300px;
         border-radius: 50%;
-        background: radial-gradient(circle, rgba(228,176,74,0.28) 0%, rgba(228,176,74,0.02) 70%);
+        background: radial-gradient(circle, rgba(217,154,37,0.32) 0%, rgba(217,154,37,0.02) 70%);
+    }
+
+    .hero-grid {
+        display: grid;
+        grid-template-columns: 1.6fr 0.8fr;
+        gap: 20px;
+        align-items: end;
     }
 
     .eyebrow {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        border-radius: 999px;
         padding: 8px 14px;
+        border-radius: 999px;
         background: rgba(255,255,255,0.12);
-        border: 1px solid rgba(255,255,255,0.14);
+        border: 1px solid rgba(255,255,255,0.16);
         font-size: 12px;
         font-weight: 700;
-        letter-spacing: 0.08em;
         text-transform: uppercase;
+        letter-spacing: 0.08em;
     }
 
-    .hero-title {
-        margin: 18px 0 10px;
-        font-size: 42px;
-        font-weight: 800;
-        letter-spacing: -0.03em;
+    .hero h2 {
+        margin: 18px 0 12px;
+        font-size: 44px;
         line-height: 1.08;
+        letter-spacing: -0.04em;
     }
 
-    .hero-copy {
-        max-width: 720px;
+    .hero p {
+        margin: 0;
+        max-width: 760px;
+        color: rgba(255,255,255,0.86);
         font-size: 16px;
-        line-height: 1.7;
-        color: rgba(246, 251, 255, 0.86);
+        line-height: 1.75;
     }
 
-    .hero-grid {
-        display: grid;
-        grid-template-columns: 1.8fr 1fr;
-        gap: 18px;
-        align-items: end;
-    }
-
-    .hero-note {
-        display: flex;
-        flex-direction: column;
-        gap: 14px;
-        padding: 20px;
-        border-radius: 24px;
-        background: rgba(255,255,255,0.09);
+    .hero-aside {
+        background: rgba(255,255,255,0.10);
         border: 1px solid rgba(255,255,255,0.12);
-        backdrop-filter: blur(12px);
+        border-radius: 26px;
+        padding: 22px;
+        backdrop-filter: blur(10px);
     }
 
-    .hero-note h4 {
-        margin: 0;
-        font-size: 15px;
-        font-weight: 700;
+    .hero-aside h3 {
+        margin: 0 0 12px;
+        font-size: 16px;
     }
 
-    .hero-note p {
+    .hero-aside ul {
         margin: 0;
-        color: rgba(246, 251, 255, 0.82);
-        line-height: 1.65;
+        padding-left: 18px;
+        color: rgba(255,255,255,0.82);
+        line-height: 1.8;
         font-size: 13px;
     }
 
-    .section-title {
-        margin: 26px 0 4px;
-        font-size: 20px;
-        font-weight: 800;
-        letter-spacing: -0.02em;
-        color: var(--ink);
-    }
-
-    .section-copy {
-        color: var(--muted);
-        margin-bottom: 16px;
-        font-size: 14px;
-    }
-
-    .metric-card {
-        background: var(--panel);
+    .shell {
+        background: var(--surface);
         border: 1px solid rgba(255,255,255,0.55);
-        backdrop-filter: blur(12px);
-        border-radius: 24px;
+        border-radius: 30px;
         padding: 22px;
         box-shadow: var(--shadow);
-        min-height: 150px;
     }
 
-    .metric-label {
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: var(--muted);
-        font-weight: 700;
-    }
-
-    .metric-value {
-        margin-top: 14px;
-        font-size: 36px;
-        font-weight: 800;
-        letter-spacing: -0.04em;
-        color: var(--ink);
-    }
-
-    .metric-help {
-        margin-top: 10px;
-        font-size: 13px;
-        line-height: 1.6;
-        color: var(--muted);
-    }
-
-    .panel-card {
-        background: var(--panel);
-        border: 1px solid rgba(255,255,255,0.65);
-        backdrop-filter: blur(12px);
-        border-radius: 28px;
-        padding: 24px;
-        box-shadow: var(--shadow);
-    }
-
-    .panel-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 18px;
-        margin-bottom: 16px;
+    .shell-dark {
+        background: linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(245,249,253,0.96) 100%);
     }
 
     .panel-title {
         margin: 0;
         font-size: 22px;
         font-weight: 800;
-        color: var(--ink);
+        letter-spacing: -0.03em;
     }
 
-    .panel-subtitle {
-        margin: 6px 0 0;
+    .panel-copy {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.65;
+    }
+
+    .mini-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        font-weight: 800;
+        margin-bottom: 8px;
+    }
+
+    .summary-card {
+        background: rgba(255,255,255,0.88);
+        border: 1px solid var(--stroke);
+        border-radius: 24px;
+        padding: 22px;
+        min-height: 152px;
+        box-shadow: 0 16px 36px rgba(15, 39, 64, 0.07);
+    }
+
+    .summary-value {
+        font-size: 38px;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        color: var(--text);
+        margin-top: 6px;
+    }
+
+    .summary-help {
         color: var(--muted);
         font-size: 13px;
-        line-height: 1.6;
+        line-height: 1.65;
+        margin-top: 10px;
     }
 
-    .control-shell {
-        background: linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(245,248,252,0.92) 100%);
-        border: 1px solid rgba(17, 36, 56, 0.08);
-        border-radius: 26px;
-        padding: 18px;
-        box-shadow: 0 18px 45px rgba(13, 31, 48, 0.08);
-        margin-bottom: 22px;
-    }
-
-    .pill-row {
+    .filter-chip-row {
         display: flex;
-        gap: 10px;
         flex-wrap: wrap;
+        gap: 10px;
         margin-top: 12px;
     }
 
-    .pill {
+    .filter-chip {
+        padding: 9px 13px;
         border-radius: 999px;
-        padding: 8px 12px;
-        background: #edf4ff;
-        color: #2854aa;
+        background: #eef4ff;
+        color: #2858b8;
         font-size: 12px;
         font-weight: 700;
     }
 
-    .report-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 16px;
+    .note-card {
+        background: #f7fafc;
+        border: 1px solid var(--stroke);
+        border-radius: 22px;
+        padding: 18px;
+    }
+
+    .note-card strong {
+        color: var(--text);
     }
 
     .report-card {
-        background: rgba(255,255,255,0.92);
-        border: 1px solid rgba(17, 36, 56, 0.08);
+        background: rgba(255,255,255,0.94);
+        border: 1px solid var(--stroke);
         border-radius: 24px;
         padding: 22px;
-        box-shadow: 0 16px 36px rgba(13, 31, 48, 0.08);
+        box-shadow: 0 18px 40px rgba(15, 39, 64, 0.08);
+        height: 100%;
     }
 
     .report-tag {
         display: inline-flex;
-        align-items: center;
         border-radius: 999px;
-        padding: 7px 12px;
+        padding: 8px 12px;
         font-size: 12px;
         font-weight: 800;
-        margin-bottom: 16px;
+        margin-bottom: 14px;
     }
 
-    .tag-red { background: rgba(210, 77, 87, 0.14); color: #aa2c3a; }
-    .tag-orange { background: rgba(240, 139, 55, 0.16); color: #b65d11; }
-    .tag-green { background: rgba(38, 162, 123, 0.14); color: #127453; }
-    .tag-blue { background: rgba(55, 125, 255, 0.14); color: #2056c9; }
+    .tag-red { background: rgba(212,75,87,0.14); color: #b22d3c; }
+    .tag-orange { background: rgba(239,139,44,0.16); color: #b96215; }
+    .tag-green { background: rgba(28,157,116,0.14); color: #0f7658; }
+    .tag-blue { background: rgba(37,116,234,0.14); color: #1f56ba; }
 
-    .report-title {
-        margin: 0 0 12px;
+    .report-card h4 {
+        margin: 0 0 8px;
         font-size: 18px;
         font-weight: 800;
-        color: var(--ink);
     }
 
     .report-stat {
-        margin-bottom: 14px;
         color: var(--muted);
         font-size: 13px;
         line-height: 1.7;
+        margin-bottom: 14px;
     }
 
-    .report-block-title {
-        margin: 14px 0 8px;
-        font-size: 13px;
+    .report-section {
+        margin-top: 14px;
+        font-size: 12px;
         font-weight: 800;
-        color: var(--ink);
+        letter-spacing: 0.08em;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        color: var(--text);
     }
 
     .report-copy {
-        color: #304558;
-        line-height: 1.8;
+        color: #314556;
         font-size: 14px;
+        line-height: 1.8;
+        margin-top: 8px;
     }
 
-    .stAlert {
-        border-radius: 18px;
+    [data-testid="stMetric"] {
+        background: rgba(255,255,255,0.92);
+        border: 1px solid var(--stroke);
+        border-radius: 24px;
+        padding: 16px 18px;
+        box-shadow: 0 16px 36px rgba(15, 39, 64, 0.07);
     }
 
     @media (max-width: 1100px) {
         .hero-grid {
-            grid-template-columns: 1fr;
-        }
-        .report-grid {
             grid-template-columns: 1fr;
         }
     }
@@ -396,11 +419,7 @@ def load_raw_data():
     df["학년"] = df[grade_col].astype(str).str.strip() if grade_col else "전체"
     df = df.replace({"": pd.NA, "nan": pd.NA, "None": pd.NA})
 
-    meta = {
-        "valid": valid_targets,
-        "file_path": file_path,
-    }
-    return df, meta, None
+    return df, {"valid": valid_targets, "file_path": file_path}, None
 
 
 def apply_filters(df, years, regions, grades, genders, schools):
@@ -419,11 +438,7 @@ def apply_filters(df, years, regions, grades, genders, schools):
 
 
 def build_cluster_labels(cluster_summary, x_label):
-    if x_label == "BMI":
-        ordered = cluster_summary.sort_values("score", ascending=True).index.tolist()
-    else:
-        ordered = cluster_summary.sort_values("score", ascending=False).index.tolist()
-
+    ordered = cluster_summary.sort_values("score", ascending=(x_label == "BMI")).index.tolist()
     label_sets = {
         2: ["관리 필요군", "건강 양호군"],
         3: ["고위험군", "일반군", "우수군"],
@@ -435,71 +450,90 @@ def build_cluster_labels(cluster_summary, x_label):
 
 def get_group_style(label):
     if "고위험" in label or "관리 필요" in label:
-        return "tag-red", "#d24d57"
+        return "tag-red"
     if "중점관리" in label:
-        return "tag-orange", "#f08b37"
+        return "tag-orange"
     if "일반" in label:
-        return "tag-green", "#26a27b"
-    return "tag-blue", "#377dff"
+        return "tag-green"
+    return "tag-blue"
 
 
 def get_prescription_content(label):
     if "고위험" in label or "관리 필요" in label:
         return (
-            "기초 체력 회복 중심 처방",
-            "저충격 유산소와 기초 근력 운동을 병행해 활동량을 안전하게 확보하고, 무리 없는 주간 루틴으로 운동 적응도를 높입니다.",
+            "기초 체력 회복 중심",
+            "저강도 유산소와 기초 근력 루틴으로 활동량을 안정적으로 회복하고 생활 속 움직임을 늘리는 방향이 적합합니다.",
             "집중 지원 프로그램",
-            "소그룹 건강체력교실, 영양 상담, 가정 연계형 생활습관 코칭을 묶어 지속 관리가 가능하도록 설계합니다.",
+            "건강체력교실, 영양 상담, 가정 연계형 생활습관 피드백을 함께 운영하는 구성이 효과적입니다.",
         )
     if "중점관리" in label:
         return (
-            "참여도 강화형 처방",
-            "뉴스포츠, 순환 운동, 기록 기반 목표 관리를 통해 흥미를 유지하면서 심폐지구력과 근지구력을 단계적으로 끌어올립니다.",
+            "참여도 강화형 성장",
+            "뉴스포츠와 순환운동을 활용해 흥미를 유지하면서 심폐지구력과 근지구력을 단계적으로 끌어올립니다.",
             "방과 후 성장 프로그램",
-            "또래 참여형 스포츠클럽과 성취 피드백을 연결해 운동 지속성과 자기효능감을 함께 높입니다.",
+            "팀 스포츠 기반 참여형 프로그램과 주간 목표 피드백을 결합해 운동 지속성을 높입니다.",
         )
     if "일반" in label:
         return (
-            "균형 유지형 처방",
-            "근력, 유연성, 지구력의 밸런스를 유지하는 주간 루틴을 운영하며 부상 예방을 위한 스트레칭과 기초 회복 습관을 강화합니다.",
-            "자율 체육 습관화",
-            "1인 1운동, 선택형 종목 체험, 자기주도 기록 관리를 통해 생활 속 운동 습관을 안정적으로 정착시킵니다.",
+            "균형 유지형 관리",
+            "근력, 유연성, 지구력의 밸런스를 유지할 수 있도록 주간 루틴과 회복 스트레칭을 함께 운영합니다.",
+            "자율 습관 프로그램",
+            "1인 1운동, 기록 관리, 선택형 종목 체험을 통해 생활체육 습관을 안정적으로 정착시킵니다.",
         )
     return (
-        "심화 성장형 처방",
-        "인터벌 트레이닝, 개인 강점 보완 훈련, 종목 특화 루틴을 통해 상위 체력군의 성장을 정교하게 이어갑니다.",
+        "심화 성장형 관리",
+        "인터벌 트레이닝과 종목 특화 루틴을 통해 상위 체력군의 강점을 유지하고 한 단계 더 발전시키는 전략입니다.",
         "리더십 연계 프로그램",
-        "교내 스포츠 리더, 멘토링 활동, 지역 심화 프로그램 연계를 통해 우수군의 역할과 동기를 함께 확장합니다.",
+        "학생 스포츠 리더, 멘토링, 지역 연계 심화 프로그램으로 동기와 역할을 확장할 수 있습니다.",
     )
 
 
-def format_selection(values, empty_text="전체"):
+def format_selection(values):
     if not values:
-        return empty_text
-    if len(values) <= 2:
-        return ", ".join(map(str, values))
-    return f"{', '.join(map(str, values[:2]))} 외 {len(values) - 2}개"
+        return "전체"
+    values = [str(value) for value in values]
+    return ", ".join(values[:2]) + (f" 외 {len(values) - 2}개" if len(values) > 2 else "")
 
 
 raw_df, meta, load_error = load_raw_data()
 
 st.markdown(
     """
-    <div class="hero-shell">
+    <div class="topbar">
+        <div class="brand">
+            <div class="brand-badge">PC+</div>
+            <div class="brand-copy">
+                <h1>PAPS Care+ Intelligence</h1>
+                <p>School Fitness Analytics Dashboard</p>
+            </div>
+        </div>
+        <div class="status-chip">Institutional Reporting View</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    """
+    <div class="hero">
         <div class="hero-grid">
             <div>
-                <div class="eyebrow">PAPS CARE+ Intelligence Suite</div>
-                <div class="hero-title">학교 체력 데이터를<br>기관용 분석 서비스처럼 보여주는 대시보드</div>
-                <div class="hero-copy">
-                    강원특별자치도 학교 데이터를 기반으로 체력 지표 분포를 군집화하고,
-                    집단별 관리 우선순위와 실행 가능한 프로그램 제안을 한 화면에서 제공합니다.
-                </div>
+                <div class="eyebrow">Professional PAPS Dashboard</div>
+                <h2>주먹구구식 앱이 아니라<br>기관 보고용 서비스처럼 보이는 화면</h2>
+                <p>
+                    학교 체력 데이터를 바탕으로 현재 분포, 위험군 비중, 집단별 처방 방향을
+                    한 번에 파악할 수 있도록 정보 위계를 다시 설계했습니다.
+                    필터와 분석 프레임은 상단에서 바로 조정되고, 결과는 탭별로 정리됩니다.
+                </p>
             </div>
-            <div class="hero-note">
-                <h4>Professional View</h4>
-                <p>기본 스트림릿 화면이 아니라 기관 보고용 정보 위계로 재구성했습니다.</p>
-                <p>상단 요약, 분석 설정, 산점도, 집단별 처방 보드가 자연스럽게 이어지도록 설계했습니다.</p>
-                <p>필터는 실제 분석에 반영되며, 선택된 조건만 기준으로 AI 군집을 재계산합니다.</p>
+            <div class="hero-aside">
+                <h3>이번 리디자인 포인트</h3>
+                <ul>
+                    <li>사이드바 중심 구조 제거</li>
+                    <li>상단 컨트롤 바 + 기관형 KPI 카드</li>
+                    <li>탭 구조로 overview, cluster, prescription 분리</li>
+                    <li>표 대신 카드형 전략 리포트 사용</li>
+                </ul>
             </div>
         </div>
     </div>
@@ -513,37 +547,52 @@ if load_error:
     st.stop()
 
 
-with st.sidebar:
-    st.markdown("## 분석 조건")
-    st.caption("필터를 선택하면 차트와 처방 보드가 같은 기준으로 다시 계산됩니다.")
+with st.container():
+    st.markdown('<div class="shell shell-dark">', unsafe_allow_html=True)
+    st.markdown('<h3 class="panel-title">Analysis Control Center</h3>', unsafe_allow_html=True)
+    st.markdown(
+        '<p class="panel-copy">필터와 분석 축을 상단에서 바로 조정하도록 바꿨습니다. 결과는 아래 탭 전체에 동일하게 반영됩니다.</p>',
+        unsafe_allow_html=True,
+    )
 
-    s_year = st.multiselect("연도", sorted(raw_df["연도"].dropna().unique()))
-    s_region = st.multiselect("시·군", sorted(raw_df["시군"].dropna().unique()))
-    s_grade = st.multiselect("학년", sorted(raw_df["학년"].dropna().unique()))
-    s_gender = st.multiselect("성별", sorted(raw_df["성별"].dropna().unique()))
+    row1 = st.columns(5)
+    with row1[0]:
+        s_year = st.multiselect("연도", sorted(raw_df["연도"].dropna().unique()))
+    with row1[1]:
+        s_region = st.multiselect("시·군", sorted(raw_df["시군"].dropna().unique()))
+    with row1[2]:
+        s_grade = st.multiselect("학년", sorted(raw_df["학년"].dropna().unique()))
+    with row1[3]:
+        s_gender = st.multiselect("성별", sorted(raw_df["성별"].dropna().unique()))
+    with row1[4]:
+        school_base_df = apply_filters(raw_df, s_year, s_region, s_grade, s_gender, [])
+        school_options = sorted(school_base_df["순수학교명"].dropna().unique())
+        s_school = st.multiselect("학교", school_options)
 
-    school_base_df = apply_filters(raw_df, s_year, s_region, s_grade, s_gender, [])
-    school_options = sorted(school_base_df["순수학교명"].dropna().unique())
-    s_school = st.multiselect("학교명", school_options)
+    row2 = st.columns([1.2, 1.2, 0.8])
+    metric_options = list(meta["valid"].keys())
+    with row2[0]:
+        x_ax = st.selectbox("수평축", metric_options, index=0)
+    with row2[1]:
+        y_ax = st.selectbox("수직축", metric_options, index=1 if len(metric_options) > 1 else 0)
+    with row2[2]:
+        n_cl = st.slider("군집 수", 2, 4, 3)
 
-metric_options = list(meta["valid"].keys())
-
-st.markdown("### 현재 분석 범위")
-st.markdown(
-    f"""
-    <div class="pill-row">
-        <div class="pill">연도: {format_selection(s_year)}</div>
-        <div class="pill">지역: {format_selection(s_region)}</div>
-        <div class="pill">학년: {format_selection(s_grade)}</div>
-        <div class="pill">성별: {format_selection(s_gender)}</div>
-        <div class="pill">학교: {format_selection(s_school)}</div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+    st.markdown(
+        f"""
+        <div class="filter-chip-row">
+            <div class="filter-chip">연도: {format_selection(s_year)}</div>
+            <div class="filter-chip">지역: {format_selection(s_region)}</div>
+            <div class="filter-chip">학년: {format_selection(s_grade)}</div>
+            <div class="filter-chip">성별: {format_selection(s_gender)}</div>
+            <div class="filter-chip">학교: {format_selection(s_school)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown("</div>", unsafe_allow_html=True)
 
 filtered_df = apply_filters(raw_df, s_year, s_region, s_grade, s_gender, s_school)
-
 if filtered_df.empty:
     st.warning("선택한 조건에 맞는 데이터가 없습니다. 필터를 조정해 주세요.")
     st.stop()
@@ -551,28 +600,6 @@ if filtered_df.empty:
 group_cols = ["순수학교명", "연도", "시군", "학년", "성별"]
 agg_map = {column: "mean" for column in meta["valid"].values()}
 df_agg = filtered_df.groupby(group_cols, dropna=False).agg(agg_map).reset_index()
-
-st.markdown(
-    """
-    <div class="control-shell">
-        <div class="panel-header">
-            <div>
-                <h3 class="panel-title">분석 프레임 설정</h3>
-                <p class="panel-subtitle">기관 보고서처럼 보이도록 핵심 비교 지표와 군집 세분화 수준을 먼저 고정합니다.</p>
-            </div>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-ctrl1, ctrl2, ctrl3 = st.columns([1.2, 1.2, 1])
-with ctrl1:
-    x_ax = st.selectbox("수평축 지표", metric_options, index=0)
-with ctrl2:
-    y_ax = st.selectbox("수직축 지표", metric_options, index=1 if len(metric_options) > 1 else 0)
-with ctrl3:
-    n_cl = st.slider("군집 수", 2, 4, 3)
 
 raw_x = meta["valid"][x_ax]
 raw_y = meta["valid"][y_ax]
@@ -585,7 +612,6 @@ if len(cluster_source) < n_cl:
 scaled_points = StandardScaler().fit_transform(cluster_source[[raw_x, raw_y]])
 kmeans = KMeans(n_clusters=n_cl, random_state=42, n_init=10)
 cluster_source["Cluster"] = kmeans.fit_predict(scaled_points)
-
 cluster_summary = cluster_source.groupby("Cluster")[[raw_x, raw_y]].mean()
 cluster_summary["score"] = cluster_summary.mean(axis=1)
 cluster_labels = build_cluster_labels(cluster_summary, x_ax)
@@ -593,153 +619,204 @@ cluster_source["유형"] = cluster_source["Cluster"].map(cluster_labels)
 
 school_count = int(cluster_source["순수학교명"].nunique())
 region_count = int(cluster_source["시군"].nunique())
-year_span = f"{int(cluster_source['연도'].min())} - {int(cluster_source['연도'].max())}"
-top_group = cluster_source["유형"].value_counts().idxmax()
+dominant_group = cluster_source["유형"].value_counts().idxmax()
+dominant_share = round((cluster_source["유형"].value_counts().max() / len(cluster_source)) * 100, 1)
 
-st.markdown('<div class="section-title">Executive Summary</div>', unsafe_allow_html=True)
-st.markdown(
-    '<div class="section-copy">상단 요약은 현재 필터 기준으로 다시 계산된 결과입니다.</div>',
-    unsafe_allow_html=True,
-)
+tabs = st.tabs(["Overview", "Cluster Map", "Prescription Board"])
 
-metric1, metric2, metric3, metric4 = st.columns(4)
-metric_cards = [
-    ("대상 학교 수", f"{school_count}", "현재 조건에 포함된 학교 단위 집계 수"),
-    ("분석 지역 수", f"{region_count}", "시·군 기준으로 확인된 지역 범위"),
-    ("분석 연도 범위", year_span, "필터 적용 후 실제 분석에 사용된 기간"),
-    ("최대 비중 집단", top_group, "현재 군집 결과에서 가장 큰 비중의 그룹"),
-]
-for column, (label, value, help_text) in zip((metric1, metric2, metric3, metric4), metric_cards):
-    with column:
+with tabs[0]:
+    st.markdown("### Executive Summary")
+    st.markdown("보고서 첫 화면처럼 현재 분석 기준의 핵심 수치를 먼저 보여줍니다.")
+
+    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+    with kpi1:
         st.markdown(
             f"""
-            <div class="metric-card">
-                <div class="metric-label">{label}</div>
-                <div class="metric-value">{value}</div>
-                <div class="metric-help">{help_text}</div>
+            <div class="summary-card">
+                <div class="mini-label">Schools</div>
+                <div class="summary-value">{school_count}</div>
+                <div class="summary-help">현재 필터 기준으로 포함된 학교 수입니다.</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with kpi2:
+        st.markdown(
+            f"""
+            <div class="summary-card">
+                <div class="mini-label">Regions</div>
+                <div class="summary-value">{region_count}</div>
+                <div class="summary-help">시·군 기준으로 포함된 지역 범위입니다.</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with kpi3:
+        st.markdown(
+            f"""
+            <div class="summary-card">
+                <div class="mini-label">Dominant Group</div>
+                <div class="summary-value" style="font-size:30px;">{dominant_group}</div>
+                <div class="summary-help">전체 집계 중 가장 큰 비중을 차지한 집단입니다.</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with kpi4:
+        st.markdown(
+            f"""
+            <div class="summary-card">
+                <div class="mini-label">Share</div>
+                <div class="summary-value">{dominant_share}%</div>
+                <div class="summary-help">최대 비중 집단의 점유율입니다.</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-left, right = st.columns([1.65, 1])
+    left, right = st.columns([1.35, 1])
+    with left:
+        st.markdown('<div class="shell">', unsafe_allow_html=True)
+        st.markdown('<h3 class="panel-title">현황 브리프</h3>', unsafe_allow_html=True)
+        st.markdown(
+            '<p class="panel-copy">선택한 조건 안에서 어떤 집단이 많이 보이는지 빠르게 읽을 수 있도록 구성했습니다.</p>',
+            unsafe_allow_html=True,
+        )
+        share_df = (
+            cluster_source["유형"]
+            .value_counts(normalize=True)
+            .mul(100)
+            .round(1)
+            .rename_axis("유형")
+            .reset_index(name="비중")
+        )
+        bar_fig = px.bar(
+            share_df,
+            x="비중",
+            y="유형",
+            orientation="h",
+            color="유형",
+            text="비중",
+            color_discrete_map={
+                "관리 필요군": "#d44b57",
+                "고위험군": "#d44b57",
+                "중점관리군": "#ef8b2c",
+                "일반군": "#1c9d74",
+                "우수군": "#2574ea",
+                "건강 양호군": "#2574ea",
+            },
+        )
+        bar_fig.update_traces(texttemplate="%{text}%", textposition="outside")
+        bar_fig.update_layout(
+            height=360,
+            margin=dict(t=10, b=10, l=10, r=10),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            showlegend=False,
+            xaxis=dict(showgrid=True, gridcolor="rgba(16,34,53,0.08)", zeroline=False),
+            yaxis=dict(showgrid=False),
+        )
+        st.plotly_chart(bar_fig, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
-with left:
-    st.markdown(
-        """
-        <div class="panel-card">
-            <div class="panel-header">
-                <div>
-                    <h3 class="panel-title">Cluster Position Map</h3>
-                    <p class="panel-subtitle">선택한 두 지표를 기준으로 학교별 상대 위치와 집단 분포를 시각화합니다.</p>
-                </div>
+    with right:
+        st.markdown('<div class="shell">', unsafe_allow_html=True)
+        st.markdown('<h3 class="panel-title">해석 메모</h3>', unsafe_allow_html=True)
+        st.markdown(
+            f"""
+            <div class="note-card">
+                <strong>현재 분석 조합</strong><br>
+                {x_ax}와 {y_ax}를 기준으로 {n_cl}개 군집을 생성했습니다.
             </div>
-        """,
-        unsafe_allow_html=True,
-    )
+            <br>
+            <div class="note-card">
+                <strong>해석 기준</strong><br>
+                필터된 데이터만 사용해 군집을 다시 계산하므로, 현재 화면은 전체 평균이 아니라 선택된 집단의 상대 비교 결과입니다.
+            </div>
+            <br>
+            <div class="note-card">
+                <strong>주의</strong><br>
+                BMI는 높은 값이 항상 좋은 것으로 읽히지 않도록 별도 방향성을 적용했습니다.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    color_map = {
-        "관리 필요군": "#d24d57",
-        "고위험군": "#d24d57",
-        "중점관리군": "#f08b37",
-        "일반군": "#26a27b",
-        "우수군": "#377dff",
-        "건강 양호군": "#377dff",
-    }
+with tabs[1]:
+    st.markdown("### Cluster Position Map")
+    st.markdown("학교별 위치와 군집 분포를 한 화면에서 읽기 쉽도록 차트 영역을 크게 구성했습니다.")
+
+    st.markdown('<div class="shell">', unsafe_allow_html=True)
     fig = px.scatter(
         cluster_source,
         x=raw_x,
         y=raw_y,
         color="유형",
+        size_max=18,
         text="순수학교명",
-        labels={raw_x: x_ax, raw_y: y_ax, "유형": "집단"},
         hover_data={"연도": True, "시군": True, "학년": True, "성별": True},
-        color_discrete_map=color_map,
+        labels={raw_x: x_ax, raw_y: y_ax, "유형": "집단"},
+        color_discrete_map={
+            "관리 필요군": "#d44b57",
+            "고위험군": "#d44b57",
+            "중점관리군": "#ef8b2c",
+            "일반군": "#1c9d74",
+            "우수군": "#2574ea",
+            "건강 양호군": "#2574ea",
+        },
     )
     fig.update_traces(
-        marker=dict(size=16, opacity=0.88, line=dict(width=1.2, color="white")),
+        marker=dict(size=17, opacity=0.88, line=dict(width=1.2, color="white")),
         textposition="top center",
-        textfont=dict(size=10, color="#27415a"),
+        textfont=dict(size=10, color="#254258"),
     )
     fig.update_layout(
-        height=560,
+        height=620,
         margin=dict(t=10, b=10, l=10, r=10),
-        plot_bgcolor="rgba(255,255,255,0)",
-        paper_bgcolor="rgba(255,255,255,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
         legend=dict(
             orientation="h",
             yanchor="bottom",
-            y=1.02,
+            y=1.03,
             xanchor="right",
             x=1,
-            bgcolor="rgba(255,255,255,0.70)",
+            bgcolor="rgba(255,255,255,0.72)",
         ),
-        xaxis=dict(showgrid=True, gridcolor="rgba(16,36,55,0.08)", zeroline=False),
-        yaxis=dict(showgrid=True, gridcolor="rgba(16,36,55,0.08)", zeroline=False),
+        xaxis=dict(showgrid=True, gridcolor="rgba(16,34,53,0.08)", zeroline=False),
+        yaxis=dict(showgrid=True, gridcolor="rgba(16,34,53,0.08)", zeroline=False),
     )
     st.plotly_chart(fig, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-with right:
-    st.markdown(
-        """
-        <div class="panel-card">
-            <div class="panel-header">
-                <div>
-                    <h3 class="panel-title">Analysis Note</h3>
-                    <p class="panel-subtitle">해석 시 확인해야 할 핵심 포인트를 함께 제공합니다.</p>
-                </div>
-            </div>
-        """,
-        unsafe_allow_html=True,
-    )
+with tabs[2]:
+    st.markdown("### Prescription Board")
+    st.markdown("기존 표 대신 전문 리포트 카드 형식으로 집단별 전략을 정리했습니다.")
 
-    top_counts = cluster_source["유형"].value_counts()
-    for label, count in top_counts.items():
-        tag_class, tag_color = get_group_style(label)
-        share = round((count / len(cluster_source)) * 100, 1)
-        st.markdown(
-            f"""
-            <div class="report-card" style="padding:18px; margin-bottom:12px; box-shadow:none;">
-                <span class="report-tag {tag_class}">{label}</span>
-                <div class="report-stat">구성 비중 {share}% · 학교 수 {int(count)}</div>
-                <div class="report-copy">선택 지표 조합에서 상대적으로 유사한 위치를 보이는 학교 집단입니다.</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    row_order = ["고위험군", "관리 필요군", "중점관리군", "일반군", "우수군", "건강 양호군"]
+    visible_rows = [label for label in row_order if label in cluster_source["유형"].unique()]
 
-    st.caption(
-        "안내: 군집 라벨은 선택한 지표 조합에 대한 상대 비교입니다. BMI는 높은 값이 항상 우수하다고 해석되지 않도록 별도 방향성을 적용했습니다."
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
-
-st.markdown('<div class="section-title">맞춤형 처방 보드</div>', unsafe_allow_html=True)
-st.markdown(
-    '<div class="section-copy">집단별 평균 지표와 권장 실행 방향을 카드형 리포트로 정리했습니다.</div>',
-    unsafe_allow_html=True,
-)
-
-sum_df = cluster_source.groupby("유형")[[raw_x, raw_y]].mean().round(1)
-row_order = ["고위험군", "관리 필요군", "중점관리군", "일반군", "우수군", "건강 양호군"]
-visible_rows = [label for label in row_order if label in sum_df.index]
-
-report_html = ['<div class="report-grid">']
-for label in visible_rows:
-    tag_class, _ = get_group_style(label)
-    title_1, body_1, title_2, body_2 = get_prescription_content(label)
-    report_html.append(
-        f"""
-        <div class="report-card">
-            <span class="report-tag {tag_class}">{label}</span>
-            <h4 class="report-title">{label} 맞춤 전략</h4>
-            <div class="report-stat">{x_ax} 평균 {sum_df.loc[label, raw_x]} · {y_ax} 평균 {sum_df.loc[label, raw_y]}</div>
-            <div class="report-block-title">운동 처방</div>
-            <div class="report-copy"><strong>{title_1}</strong><br>{body_1}</div>
-            <div class="report-block-title">교육 프로그램</div>
-            <div class="report-copy"><strong>{title_2}</strong><br>{body_2}</div>
-        </div>
-        """
-    )
-report_html.append("</div>")
-st.markdown("".join(report_html), unsafe_allow_html=True)
+    for start in range(0, len(visible_rows), 2):
+        cols = st.columns(2)
+        for col, label in zip(cols, visible_rows[start:start + 2]):
+            tag_class = get_group_style(label)
+            title_1, body_1, title_2, body_2 = get_prescription_content(label)
+            subset = cluster_source[cluster_source["유형"] == label]
+            with col:
+                st.markdown(
+                    f"""
+                    <div class="report-card">
+                        <span class="report-tag {tag_class}">{label}</span>
+                        <h4>{label} 맞춤 전략</h4>
+                        <div class="report-stat">
+                            학교 수 {len(subset)} · {x_ax} 평균 {subset[raw_x].mean():.1f} · {y_ax} 평균 {subset[raw_y].mean():.1f}
+                        </div>
+                        <div class="report-section">운동 처방</div>
+                        <div class="report-copy"><strong>{title_1}</strong><br>{body_1}</div>
+                        <div class="report-section">교육 프로그램</div>
+                        <div class="report-copy"><strong>{title_2}</strong><br>{body_2}</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
