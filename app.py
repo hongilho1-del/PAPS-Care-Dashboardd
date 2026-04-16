@@ -68,12 +68,16 @@ def load_raw_data():
         if '시군' not in df.columns:
             df['시군'] = '강원'
 
-        # 💡 [핵심] 성별(남/여) 컬럼 찾기 및 표준화
+        # 💡 [핵심] 성별 및 학년 컬럼 추출 및 표준화
         gender_col = find_col(['성별', '남여', '구분_성별'])
-        if gender_col:
-            df['성별'] = df[gender_col].astype(str).str.strip()
+        df['성별'] = df[gender_col].astype(str).str.strip() if gender_col else '전체'
+
+        grade_col = find_col(['학년', '구분_학년'])
+        if grade_col:
+            # 숫자만 있든 '1학년'으로 되어 있든 일관되게 'X학년' 포맷으로 통일
+            df['학년'] = df[grade_col].astype(str).str.replace('학년', '', regex=False).str.strip() + '학년'
         else:
-            df['성별'] = '전체'
+            df['학년'] = '전체'
 
         return df, {'school_col': school_col, 'valid_cols': valid_cols}
     except Exception as e:
@@ -117,15 +121,17 @@ def get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters):
     return df
 
 # ─── 4. 통합 렌더링 함수 (단일 뷰 구조) ───────────────────────────────────────────
-def render_dashboard(tab_df, valid_cols, selected_years, selected_regions, selected_schools, selected_genders):
+def render_dashboard(tab_df, valid_cols, selected_years, selected_regions, selected_schools, selected_genders, selected_grades):
     
-    # 💡 성별 필터는 데이터 '집계 전'에 적용해야 남/여의 정확한 평균값을 도출할 수 있습니다.
+    # 💡 [핵심] 성별 및 학년 필터는 데이터 '집계 전'에 적용해야 정확한 평균값을 도출할 수 있습니다.
     if selected_genders:
         tab_df = tab_df[tab_df['성별'].isin(selected_genders)]
+    if selected_grades:
+        tab_df = tab_df[tab_df['학년'].isin(selected_grades)]
         
-        if tab_df.empty:
-            st.info("💡 선택하신 성별에 해당하는 데이터가 없습니다.")
-            return
+    if tab_df.empty:
+        st.info("💡 선택하신 조건에 해당하는 데이터가 없습니다.")
+        return
 
     col_set1, col_set2 = st.columns([1, 3])
     metrics = list(valid_cols.keys())
@@ -150,7 +156,7 @@ def render_dashboard(tab_df, valid_cols, selected_years, selected_regions, selec
     global_x_range = [x_min - x_margin, x_max + x_margin]
     global_y_range = [y_min - y_margin, y_max + y_margin]
 
-    # 연도, 지역, 학교 필터는 AI 군집화 '후'에 숨김 처리용으로 적용합니다.
+    # 연도, 지역, 학교 필터는 AI 군집화 '후'에 숨김 처리용으로 적용
     if selected_years: plot_df = plot_df[plot_df['연도'].isin(selected_years)]
     if selected_regions: plot_df = plot_df[plot_df['시군'].isin(selected_regions)]
     if selected_schools: plot_df = plot_df[plot_df['순수학교명'].isin(selected_schools)]
@@ -163,6 +169,7 @@ def render_dashboard(tab_df, valid_cols, selected_years, selected_regions, selec
     title_parts = []
     if selected_years: title_parts.append(f"{','.join(map(str, selected_years))}년")
     if selected_regions: title_parts.append(f"{','.join(selected_regions)}")
+    if selected_grades: title_parts.append(f"{','.join(selected_grades)}")
     if selected_genders: title_parts.append(f"({','.join(selected_genders)})")
     if selected_schools: title_parts.append("특정학교")
     chart_title = "🏫 " + (" ".join(title_parts) + " 분석 결과" if title_parts else "강원특별자치도 전체 분석 결과")
@@ -220,40 +227,42 @@ def render_dashboard(tab_df, valid_cols, selected_years, selected_regions, selec
                 st.info(f"#### {idx}\n**🔻 상태:** 비만도가 낮고 체력 지표가 매우 우수하며 균형 잡힌 뛰어난 신체 능력을 보유하고 있습니다.\n\n**🏃‍♂️ 운동 방향:** 전문적인 스포츠 기술 습득 및 고강도 인터벌 트레이닝(HIIT) 등 심화 과정을 소화할 수 있습니다.\n\n**💊 처방 프로그램:** 학교 대표 스포츠 선수단 선발, 체육 동아리 리더 역할 부여, 지역 엘리트 체육 연계.")
 
     with st.expander("🔍 상세 데이터 테이블 보기"):
-        st.dataframe(plot_df.drop(columns=['순수학교명', '연도', '시군']).sort_values(['유형', '학교(연도)']), use_container_width=True)
+        st.dataframe(plot_df.drop(columns=['순수학교명', '연도', '시군'], errors='ignore').sort_values(['유형', '학교(연도)']), use_container_width=True)
 
 # ─── 5. 메인 실행 (통합 다중 조건 검색 UI) ──────────────────────────────────
 raw_df, meta = load_raw_data()
 if raw_df is not None:
     valid_cols = meta['valid_cols']
     
+    # 기초 필터 데이터 생성
     years = sorted([y for y in raw_df['연도'].unique() if y > 0])
     sigungus = sorted(raw_df['시군'].astype(str).unique().tolist())
     if '강원' in sigungus: sigungus.remove('강원')
-    
     genders = sorted([g for g in raw_df['성별'].unique() if g not in ['nan', 'None', '전체']])
+    grades = sorted([g for g in raw_df['학년'].unique() if g not in ['nan', 'None', '전체', 'nan학년']])
 
-    # 💡 4열로 나누어 연도, 시군, 성별, 학교를 한 줄에 나란히 배치합니다.
-    filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(4)
+    # 💡 [핵심] 5칸으로 나누어 연도, 지역, 학년, 성별, 학교를 한 줄에 나란히 배치합니다.
+    filter_col1, filter_col2, filter_col3, filter_col4, filter_col5 = st.columns(5)
     
     with filter_col1:
         selected_years = st.multiselect("📅 연도", options=years, placeholder="모든 연도")
-    
     with filter_col2:
         selected_regions = st.multiselect("📍 시·군", options=sigungus, placeholder="모든 지역")
-        
     with filter_col3:
+        selected_grades = st.multiselect("🎓 학년", options=grades, placeholder="모든 학년")
+    with filter_col4:
         selected_genders = st.multiselect("👫 성별", options=genders, placeholder="남/여 전체")
 
-    # 선택한 연도/지역/성별에 해당하는 학교만 남기기
+    # 선택한 연도/지역/학년/성별에 해당하는 학교만 똑똑하게 남기기
     temp_df = raw_df.copy()
     if selected_years: temp_df = temp_df[temp_df['연도'].isin(selected_years)]
     if selected_regions: temp_df = temp_df[temp_df['시군'].isin(selected_regions)]
+    if selected_grades: temp_df = temp_df[temp_df['학년'].isin(selected_grades)]
     if selected_genders: temp_df = temp_df[temp_df['성별'].isin(selected_genders)]
     filtered_schools = sorted(temp_df['순수학교명'].astype(str).unique().tolist())
 
-    with filter_col4:
+    with filter_col5:
         selected_schools = st.multiselect("🏫 학교명", options=filtered_schools, placeholder="모든 학교")
 
     st.markdown("---")
-    render_dashboard(raw_df, valid_cols, selected_years, selected_regions, selected_schools, selected_genders)
+    render_dashboard(raw_df, valid_cols, selected_years, selected_regions, selected_schools, selected_genders, selected_grades)
