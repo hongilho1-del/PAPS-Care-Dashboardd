@@ -159,73 +159,52 @@ def render_dashboard(tab_df, valid_cols, filters):
         fig.update_layout(height=550, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
         st.plotly_chart(fig, use_container_width=True)
 
-    # 💡 [핵심 수정] 리스트형 통합 처방 레이아웃
+    # 💡 [핵심 수정] 3단 가로형 레이아웃 (집단군 | 운동방향 | 교육프로그램)
     st.markdown("---")
     st.write("### 📋 그룹별 맞춤형 운동 처방 및 교육 프로그램")
 
     sum_df = plot_df.groupby('유형')[[x_axis, y_axis]].mean().round(1)
     counts = plot_df['유형'].value_counts()
 
-    # 세로로 그룹을 하나씩 전개
+    # 가로축 타이틀 (테이블 헤더 역할 - 3칸 분리)
+    head_col1, head_col2, head_col3 = st.columns([1, 2.5, 2.5])
+    with head_col1: st.markdown("##### 📊 분석 집단군")
+    with head_col2: st.markdown("##### 🏃‍♂️ 맞춤형 운동 처방")
+    with head_col3: st.markdown("##### 💊 교육 프로그램 추천")
+    st.markdown("<hr style='margin-top: 0px; margin-bottom: 20px;'>", unsafe_allow_html=True)
+
+    # 세로축 전개: 각 그룹을 가로 3칸으로 나란히 배치
     for idx in sum_df.index:
-        # 1:3 비율로 왼쪽엔 그룹 요약, 오른쪽엔 통합 처방을 배치
-        col1, col2 = st.columns([1, 3])
+        col1, col2, col3 = st.columns([1, 2.5, 2.5])
         
+        # 1번째 칸: 집단군 요약 정보
         with col1:
-            st.markdown("<br>", unsafe_allow_html=True) # 줄 맞춤을 위한 여백
+            st.markdown("<br>", unsafe_allow_html=True) # 높이 밸런스 맞춤
             st.metric(label=idx, value=f"{counts.get(idx, 0)}건", delta=f"{x_axis} 평균: {sum_df.loc[idx, x_axis]}", delta_color="off")
         
+        # 2번째 칸: 운동 처방 (독립된 박스)
         with col2:
             if "🔴" in idx:
-                st.error("""
-                **🏃‍♂️ 운동 방향: 저강도 유산소 위주 구성**
-                - 관절에 무리가 가지 않는 걷기, 수영 권장
-                - 실내 자전거를 통한 기초 체력 증진
-                - 무리한 근력 운동 지양 및 체지방 감소 유도
-                
-                **💊 교육 프로그램: 건강체력교실 우선 배정**
-                - 전문 강사의 집중적인 체력 관리
-                - 가정통신문 연계 모니터링 실시
-                - 식습관 교정 및 영양 상담 정기 진행
-                """)
+                st.error("**[ 저강도 유산소 위주 구성 ]**\n- 관절 무리 없는 걷기, 수영 권장\n- 실내 자전거로 기초 체력 증진\n- 무리한 근력 운동 지양")
             elif "🟠" in idx:
-                st.warning("""
-                **🏃‍♂️ 운동 방향: 뉴스포츠 등 활동량 증대**
-                - 흥미를 유발할 수 있는 신체 활동 병행
-                - 일상적인 움직임을 늘려 활동량 확보
-                - 과체중 및 비만 단계 진입 사전 예방
-                
-                **💊 교육 프로그램: 교내 걷기 챌린지 참여**
-                - 방과 후 스포츠클럽 가입 적극 권장
-                - 또래와 함께하는 재미 위주의 프로그램 도입
-                - 신체 활동 마일리지 등 보상 시스템 활용
-                """)
+                st.warning("**[ 활동량 증대 집중 ]**\n- 흥미 유발 신체 활동 병행\n- 일상적인 움직임 늘리기\n- 비만 단계 진입 적극 예방")
             elif "🟢" in idx:
-                st.success("""
-                **🏃‍♂️ 운동 방향: 전신 근력 및 유연성 밸런스**
-                - 현재의 기초 체력 수준 꾸준히 유지
-                - 신체 각 부위를 골고루 발달시키는 밸런스 운동
-                - 기초 체력 측정을 통한 지속적 모니터링
-                
-                **💊 교육 프로그램: 정규 체육 수업 충실**
-                - 1일 1시간 이상 일상적 신체활동 권장
-                - 다양한 교내 스포츠 종목 체험 기회 제공
-                - 자발적이고 꾸준한 운동 습관화 형성
-                """)
+                st.success("**[ 전신 밸런스 유지 ]**\n- 현재 기초 체력 수준 유지\n- 신체 부위별 골고루 발달\n- 주기적인 체력 모니터링")
             elif "🔵" in idx:
-                st.info("""
-                **🏃‍♂️ 운동 방향: 고강도 심화 트레이닝**
-                - 심폐지구력과 순발력 극대화
-                - 고강도 인터벌 트레이닝(HIIT) 소화 가능
-                - 전문적인 개별 스포츠 기술 습득
+                st.info("**[ 고강도 심화 트레이닝 ]**\n- 심폐지구력/순발력 극대화\n- 인터벌 트레이닝(HIIT) 소화\n- 전문 개별 스포츠 기술 습득")
+
+        # 3번째 칸: 교육 프로그램 추천 (독립된 박스)
+        with col3:
+            if "🔴" in idx:
+                st.error("**[ 건강체력교실 우선 배정 ]**\n- 전문 강사 집중 체력 관리\n- 가정통신문 연계 모니터링\n- 식습관 및 영양 상담 정기 진행")
+            elif "🟠" in idx:
+                st.warning("**[ 교내 걷기 챌린지 참여 ]**\n- 방과 후 스포츠클럽 가입 권장\n- 또래와 재미 위주 활동 도입\n- 신체 활동 마일리지 보상")
+            elif "🟢" in idx:
+                st.success("**[ 정규 체육 수업 충실 ]**\n- 1일 1시간 이상 신체활동 권장\n- 다양한 교내 스포츠 종목 체험\n- 자발적이고 꾸준한 운동 습관화")
+            elif "🔵" in idx:
+                st.info("**[ 학생 스포츠 리더 선발 ]**\n- 교내 체육 동아리 멘토 위촉\n- 학교 대표 선수단 선발 시 우대\n- 지역 엘리트 체육 프로그램 연계")
                 
-                **💊 교육 프로그램: 학생 스포츠 리더 선발**
-                - 교내 체육 동아리 멘토 리더십 부여
-                - 학교 대표 선수단 선발 시 우대
-                - 지역 엘리트 체육 프로그램 연계 지원
-                """)
-        
-        # 다음 그룹과의 구분을 위한 은은한 점선 추가
+        # 각 집단군(행) 구분을 위한 점선 라인
         st.markdown("<hr style='margin-top: 10px; margin-bottom: 10px; border-top: 1px dashed #e0e0e0;'>", unsafe_allow_html=True)
 
     with st.expander("🔍 상세 데이터 테이블 보기"):
