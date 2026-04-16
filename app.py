@@ -51,14 +51,13 @@ def load_raw_data():
         school_col = '추출학교명' if '추출학교명' in df.columns else df.columns[0]
         df['순수학교명'] = df[school_col].astype(str).str.strip()
         
-        # 연도 처리
         if '연도' in df.columns:
             df['연도'] = pd.to_numeric(df['연도'], errors='coerce').fillna(0).astype(int)
         else:
             df['연도'] = df[school_col].astype(str).str.extract(r'(20\d{2}|19\d{2})')[0]
             df['연도'] = pd.to_numeric(df['연도'], errors='coerce').fillna(0).astype(int)
 
-        # 💡 [핵심 수정] 시각화용 '학교명(연도)' 레이블 생성
+        # 시각화용 이름 생성 (예: 솔올중 (2023))
         df['표시용이름'] = df.apply(lambda row: f"{row['순수학교명']} ({row['연도']})" if row['연도'] > 0 else row['순수학교명'], axis=1)
 
         if '시군' not in df.columns:
@@ -71,7 +70,6 @@ def load_raw_data():
 
 # ─── 3. 학교+연도별 집계 및 군집 명칭 자동 할당 ──────────────────────────────────
 def get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters):
-    # 💡 [핵심 수정] groupby 기준을 '표시용이름'으로 변경하여 연도별 위치를 보존
     agg_dict = {v: 'mean' for v in valid_cols.values()}
     df = tab_df.groupby('표시용이름').agg(agg_dict).reset_index().round(1)
     
@@ -86,10 +84,12 @@ def get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters):
     df['Cluster'] = kmeans.fit_predict(X_scaled)
 
     sort_metric = 'BMI' if 'BMI' in df.columns else x_axis
+    # BMI가 높은 순서대로 나쁜 등급이 되도록 정렬
     cluster_means = df.groupby('Cluster')[sort_metric].mean().sort_values(ascending=False)
     
     rank_map = {cluster_idx: i for i, cluster_idx in enumerate(cluster_means.index)}
-    name_list = ["🔴 고위험군", "🟠 중점 관리군", "🔵 건강 우수군", "🟢 일반군", "⚪ 기타"]
+    # 논리적 순서: 고위험 -> 중점관리 -> 일반 -> 우수
+    name_list = ["🔴 고위험군", "🟠 중점 관리군", "🟢 일반군", "🔵 건강 우수군", "⚪ 기타"]
     df['유형'] = df['Cluster'].map(rank_map).apply(lambda x: name_list[min(x, 4)])
     return df
 
@@ -117,10 +117,10 @@ def render_tab(tab_df, tab_label, valid_cols, unique_key):
     chart_height = 400 if is_mobile else 600
 
     with col_set2:
-        color_discrete_map = {"🔴 고위험군": "#EF5350", "🟠 중점 관리군": "#FFB74D", "🔵 건강 우수군": "#42A5F5", "🟢 일반군": "#66BB6A"}
+        color_discrete_map = {"🔴 고위험군": "#EF5350", "🟠 중점 관리군": "#FFB74D", "🟢 일반군": "#66BB6A", "🔵 건강 우수군": "#42A5F5"}
         fig = px.scatter(
             plot_df, x=x_axis, y=y_axis, color='유형', 
-            text='학교(연도)', # 💡 학교명 옆에 연도가 함께 표시됩니다.
+            text='학교(연도)', 
             hover_name='학교(연도)', 
             color_discrete_map=color_discrete_map,
             title=f"🏫 {tab_label} 건강 등급 분포 (학교별/연도별)"
@@ -137,15 +137,50 @@ def render_tab(tab_df, tab_label, valid_cols, unique_key):
         )
         st.plotly_chart(fig, use_container_width=True)
 
-    # 요약 통계 및 상세 데이터
+    # 💡 [복원 및 업그레이드] AI 맞춤형 처방 프로그램 영역
+    st.markdown("---")
+    st.write("### 📋 AI 맞춤형 처방 프로그램 및 운동 방향")
+    
     sum_df = plot_df.groupby('유형')[[x_axis, y_axis]].mean().round(1)
     counts = plot_df['유형'].value_counts()
     
+    # 1. 지표 요약 (가로 나열)
     cols = st.columns(len(sum_df))
     for i, (idx, row) in enumerate(sum_df.iterrows()):
         with cols[i]:
-            st.metric(label=idx, value=f"{counts[idx]}개 데이터")
-            st.write(row)
+            st.metric(label=idx, value=f"{counts.get(idx, 0)}개 데이터", delta=f"{x_axis}: {row[x_axis]} / {y_axis}: {row[y_axis]}", delta_color="off")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # 2. 상세 처방 카드 (2단 레이아웃)
+    card_col1, card_col2 = st.columns(2)
+    
+    for idx in sum_df.index:
+        val_x = sum_df.loc[idx, x_axis]
+        if "🔴" in idx:
+            with card_col1:
+                st.error(f"#### {idx}\n"
+                         f"**🔻 상태:** 비만도({x_axis} 평균 {val_x})가 상대적으로 높고, 기초 체력이 저조하여 집중 관리가 시급합니다.\n\n"
+                         f"**🏃‍♂️ 운동 방향:** 관절에 무리가 없는 저강도 유산소 운동(수영, 실내 자전거, 걷기) 위주의 세션 구성이 필요합니다.\n\n"
+                         f"**💊 처방 프로그램:** '건강 체력 교실' 1순위 배정, 당음료 섭취 제한 등 가정통신문 연계 영양 상담 병행.")
+        elif "🟠" in idx:
+            with card_col2:
+                st.warning(f"#### {idx}\n"
+                           f"**🔻 상태:** 체력 저하가 진행 중이거나 과체중 경계 단계에 있어 사전 예방이 필요한 그룹입니다.\n\n"
+                           f"**🏃‍♂️ 운동 방향:** 흥미를 유발할 수 있는 뉴스포츠나 그룹 활동을 통해 일상적인 신체 활동량 증가를 유도해야 합니다.\n\n"
+                           f"**💊 처방 프로그램:** 방과 후 스포츠 클럽 참여 적극 권장, 교내 걷기 챌린지(만보걷기 등) 프로그램 도입.")
+        elif "🟢" in idx:
+            with card_col1:
+                st.success(f"#### {idx}\n"
+                           f"**🔻 상태:** 표준적인 체력과 체격을 유지하고 있는 가장 안정적인 밸런스의 그룹입니다.\n\n"
+                           f"**🏃‍♂️ 운동 방향:** 현재의 신체 활동 수준을 유지하며, 근력과 유연성을 고르게 발달시키는 전신 운동을 권장합니다.\n\n"
+                           f"**💊 처방 프로그램:** 정규 체육 수업의 적극적 참여 독려, 1일 1시간 이상 일상적 신체활동 습관화 지속.")
+        elif "🔵" in idx:
+            with card_col2:
+                st.info(f"#### {idx}\n"
+                        f"**🔻 상태:** 비만도가 낮고 체력 지표가 매우 우수하며 균형 잡힌 뛰어난 신체 능력을 보유하고 있습니다.\n\n"
+                        f"**🏃‍♂️ 운동 방향:** 전문적인 스포츠 기술 습득 및 고강도 인터벌 트레이닝(HIIT) 등 심화 과정을 소화할 수 있습니다.\n\n"
+                        f"**💊 처방 프로그램:** 학교 대표 스포츠 선수단 선발, 체육 동아리 멘토/리더 역할 부여, 지역 엘리트 체육 연계 지원.")
 
     with st.expander("🔍 상세 데이터 테이블 보기"):
         st.dataframe(plot_df.sort_values(['유형', '학교(연도)']), use_container_width=True)
