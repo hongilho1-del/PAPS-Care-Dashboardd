@@ -2,7 +2,7 @@ streamlit
 pandas
 plotly
 scikit-learn
+openpyxl
 beautifulsoup4
 lxml
 html5lib
-openpyxl
