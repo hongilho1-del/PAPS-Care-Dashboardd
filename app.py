@@ -21,6 +21,9 @@ def load_raw_data():
     try:
         df = pd.read_excel(file_path)
         
+        # 🚨 [수정 1] 모든 컬럼(열) 이름의 앞뒤 공백을 제거하여 '시군'을 못 찾는 에러 원천 차단
+        df.columns = df.columns.str.strip()
+        
         def find_col(keywords):
             for c in df.columns:
                 for kw in keywords:
@@ -47,15 +50,20 @@ def load_raw_data():
         for k, col in valid_cols.items():
             df[col] = pd.to_numeric(df[col].astype(str).str.replace(r'[^0-9.]', '', regex=True), errors='coerce')
 
+        # 🚨 [수정 2] 이미 엑셀 병합 단계에서 '추출학교명', '연도', '시군'이 분리되어 있으므로 그대로 사용
         school_col = '추출학교명' if '추출학교명' in df.columns else df.columns[0]
-        df['연도'] = df[school_col].astype(str).str.extract(r'(20\d{2}|19\d{2})')[0]
-        df['연도'] = pd.to_numeric(df['연도'], errors='coerce')
-        df['순수학교명'] = df[school_col].astype(str).str.replace(r'\s*(20\d{2}|19\d{2})\s*', '', regex=True).str.strip()
+        df['순수학교명'] = df[school_col].astype(str).str.strip()
+
+        # 연도 컬럼이 엑셀에 이미 있으면 그대로 숫자로 변환, 없으면 예전 방식대로 추출
+        if '연도' in df.columns:
+            df['연도'] = pd.to_numeric(df['연도'], errors='coerce')
+        else:
+            df['연도'] = df[school_col].astype(str).str.extract(r'(20\d{2}|19\d{2})')[0]
+            df['연도'] = pd.to_numeric(df['연도'], errors='coerce')
 
         # 박사님이 엑셀 파일에 직접 '시군'을 입력하셨으므로, 그 데이터가 있는지 확인
         if '시군' not in df.columns:
-            # 혹시 컬럼 이름을 다르게 쓰셨을 경우를 대비한 안전망
-            st.warning("⚠️ 엑셀 파일에서 '시군' 기둥을 찾지 못했습니다. 파일에 '시군'이라고 정확히 입력되었는지 확인해 주세요.")
+            st.warning("⚠️ 엑셀 파일에서 '시군' 기둥을 찾지 못했습니다. 엑셀 파일의 열 이름이 '시군'이 맞는지 확인해 주세요.")
             df['시군'] = '강원'
 
         return df, {'school_col': school_col, 'valid_cols': valid_cols}
@@ -173,7 +181,7 @@ if raw_df is not None:
                 render_tab(raw_df[raw_df['연도'] == y], f"{y}년도", valid_cols, f"y_{y}")
                 
     elif view_option == "📍 시·군별 비교":
-        sigungus = sorted(raw_df['시군'].dropna().unique().tolist())
+        sigungus = sorted(raw_df['시군'].astype(str).dropna().unique().tolist())
         # '기타'나 '강원' 이라는 이름은 맨 뒤로 보내거나 전체보기에 묶음
         if '강원' in sigungus: sigungus.remove('강원')
         if '기타' in sigungus: sigungus.remove('기타')
@@ -186,4 +194,4 @@ if raw_df is not None:
             
         for i, sg in enumerate(sigungus):
             with tabs[i+1]:
-                render_tab(raw_df[raw_df['시군'] == sg], f"{sg} 지역", valid_cols, f"sg_{sg}")
+                render_tab(raw_df[raw_df['시군'].astype(str) == sg], f"{sg} 지역", valid_cols, f"sg_{sg}")
