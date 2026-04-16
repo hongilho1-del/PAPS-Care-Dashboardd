@@ -214,10 +214,8 @@ if raw_df is not None:
     grades = sorted([g for g in raw_df['학년'].unique() if '전체' not in g])
     genders = sorted([g for g in raw_df['성별'].unique() if '전체' not in g])
 
-    # [핵심 공간 절약] 타이틀 옆에 뷰 선택기 배치
-    top1, top2 = st.columns([1.5, 1])
-    with top1: st.markdown("### 📍 분석 데이터 필터링")
-    with top2: view_opt = st.radio("비교 기준", ["📅 연도별", "📍 시·군별"], horizontal=True, label_visibility="collapsed")
+    # [수정됨] 비교 기준(라디오 버튼) 제거
+    st.markdown("### 📍 분석 데이터 필터링")
 
     f1, f2, f3, f4, f5 = st.columns(5)
     with f1: s_year = st.multiselect("📅 연도", options=years, placeholder="전체")
@@ -238,20 +236,6 @@ if raw_df is not None:
     # 통합 필터 딕셔너리
     filters = {'year': s_year, 'region': s_region, 'grade': s_grade, 'gender': s_gender, 'school': s_school}
 
-    # 탭별 렌더링
-    if view_opt == "📅 연도별":
-        curr_years = s_year if s_year else years
-        tabs = st.tabs(["🌐 강원전체"] + [f"{y}년" for y in curr_years])
-        with tabs[0]: render_dashboard(raw_df, meta['valid_cols'], filters)
-        for i, y in enumerate(curr_years):
-            with tabs[i+1]: 
-                f_copy = filters.copy(); f_copy['year'] = [y]
-                render_dashboard(raw_df[raw_df['연도']==y], meta['valid_cols'], f_copy)
-    else:
-        curr_regions = s_region if s_region else sigungus
-        tabs = st.tabs(["🌐 강원전체"] + [f"{r}" for r in curr_regions])
-        with tabs[0]: render_dashboard(raw_df, meta['valid_cols'], filters)
-        for i, r in enumerate(curr_regions):
-            with tabs[i+1]:
-                f_copy = filters.copy(); f_copy['region'] = [r]
-                render_dashboard(raw_df[raw_df['시군']==r], meta['valid_cols'], f_copy)
+    # [수정됨] 탭 구조를 제거하고 단일 리포트로 곧바로 렌더링
+    st.markdown("---")
+    render_dashboard(raw_df, meta['valid_cols'], filters)
