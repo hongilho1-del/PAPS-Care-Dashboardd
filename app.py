@@ -70,7 +70,6 @@ def load_raw_data():
 # ─── 3. 학교+연도별 집계 및 군집 명칭 자동 할당 ──────────────────────────────────
 def get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters):
     agg_dict = {v: 'mean' for v in valid_cols.values()}
-    # 💡 [수정] 순수학교명도 그룹화에 포함시켜 나중에 필터링할 수 있도록 보존
     df = tab_df.groupby(['순수학교명', '표시용이름']).agg(agg_dict).reset_index().round(1)
     
     df.columns = ['순수학교명', '학교(연도)'] + list(valid_cols.keys())
@@ -92,8 +91,17 @@ def get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters):
     return df
 
 # ─── 4. 탭별 렌더링 함수 ──────────────────────────────────────────────────────
-def render_tab(tab_df, tab_label, valid_cols, unique_key, selected_schools):
+def render_tab(tab_df, tab_label, valid_cols, unique_key, all_schools):
     st.subheader(f"📍 {tab_label} 분석 리포트")
+    
+    # 💡 [핵심 수정] 검색창을 최상단에서 리포트 제목 바로 아래로 이동
+    selected_schools = st.multiselect(
+        "🔎 데이터를 확인하고 싶은 학교를 선택하세요 (비워두면 전체 학교가 표시됩니다)", 
+        options=all_schools, 
+        placeholder="학교명 입력 (예: 솔올중)",
+        key=f"search_{unique_key}" # 각 탭마다 독립적으로 검색할 수 있도록 키 설정
+    )
+    st.markdown("---")
     
     col_set1, col_set2 = st.columns([1, 3])
     metrics = list(valid_cols.keys())
@@ -105,14 +113,13 @@ def render_tab(tab_df, tab_label, valid_cols, unique_key, selected_schools):
         n_clusters = st.slider("군집 세분화 (개)", 2, 4, 3, key=f"n_{unique_key}")
         is_mobile = st.toggle("📱 모바일 최적화", key=f"mob_{unique_key}")
         
-    # AI 군집화는 "전체 데이터"를 기준으로 먼저 수행합니다.
     plot_df = get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters)
 
     if plot_df.empty or len(plot_df) < n_clusters:
         st.warning("⚠️ 지표 데이터가 부족하여 AI 분석을 수행할 수 없습니다.")
         return
 
-    # 💡 [핵심] 차트가 엉뚱하게 확대되지 않도록 검색 전 전체 기준의 X, Y축 범위를 저장해 둡니다.
+    # 축 범위 고정 (학교를 검색해도 차트의 전체 기준점이 틀어지지 않도록)
     x_min, x_max = plot_df[x_axis].min(), plot_df[x_axis].max()
     y_min, y_max = plot_df[y_axis].min(), plot_df[y_axis].max()
     x_margin = (x_max - x_min) * 0.1 if x_max != x_min else 1
@@ -120,7 +127,7 @@ def render_tab(tab_df, tab_label, valid_cols, unique_key, selected_schools):
     global_x_range = [x_min - x_margin, x_max + x_margin]
     global_y_range = [y_min - y_margin, y_max + y_margin]
 
-    # 💡 [핵심] 사용자가 특정 학교를 검색한 경우, 해당 학교의 데이터만 남깁니다.
+    # 학교 검색 필터링 적용
     if selected_schools:
         plot_df = plot_df[plot_df['순수학교명'].isin(selected_schools)]
         
@@ -128,7 +135,7 @@ def render_tab(tab_df, tab_label, valid_cols, unique_key, selected_schools):
             st.info(f"💡 검색하신 학교의 데이터가 '{tab_label}' 조건에는 없습니다.")
             return
 
-    marker_size = 12 if is_mobile else 22  # 검색 시 눈에 잘 띄도록 크기를 조금 키움
+    marker_size = 12 if is_mobile else 22  
     chart_height = 400 if is_mobile else 600
 
     with col_set2:
@@ -147,7 +154,6 @@ def render_tab(tab_df, tab_label, valid_cols, unique_key, selected_schools):
             marker=dict(size=marker_size, line=dict(width=2, color='white')) 
         )
         
-        # 고정된 X, Y축 범위 적용
         fig.update_xaxes(range=global_x_range)
         fig.update_yaxes(range=global_y_range)
         
@@ -194,11 +200,8 @@ raw_df, meta = load_raw_data()
 if raw_df is not None:
     valid_cols = meta['valid_cols']
     
-    # 💡 [핵심] 최상단에 학교 검색 UI 추가 (다중 선택 가능)
-    st.markdown("### 🔎 학교 집중 분석 (검색)")
+    # 💡 모든 탭에서 공통으로 사용할 학교 목록 (전역 변수로 생성)
     all_schools = sorted(raw_df['순수학교명'].astype(str).unique().tolist())
-    selected_schools = st.multiselect("데이터를 확인하고 싶은 학교를 선택하세요. (비워두면 강원도 전체 학교가 표시됩니다)", options=all_schools, placeholder="학교명 입력 (예: 솔올중)")
-    st.markdown("---")
 
     st.markdown("### 📊 분석 뷰(View) 선택")
     view_option = st.radio("보기 방식", ["📅 연도별 비교", "📍 시·군별 비교"], horizontal=True, label_visibility="collapsed")
@@ -210,11 +213,11 @@ if raw_df is not None:
         tabs = st.tabs(tab_labels)
 
         with tabs[0]:
-            render_tab(raw_df, "강원특별자치도 전체", valid_cols, "y_all", selected_schools)
+            render_tab(raw_df, "강원특별자치도 전체", valid_cols, "y_all", all_schools)
         
         for i, y in enumerate(years):
             with tabs[i+1]:
-                render_tab(raw_df[raw_df['연도'] == y], f"{y}년도", valid_cols, f"y_{y}", selected_schools)
+                render_tab(raw_df[raw_df['연도'] == y], f"{y}년도", valid_cols, f"y_{y}", all_schools)
                 
     elif view_option == "📍 시·군별 비교":
         sigungus = sorted(raw_df['시군'].astype(str).unique().tolist())
@@ -224,8 +227,8 @@ if raw_df is not None:
         tabs = st.tabs(tab_labels)
 
         with tabs[0]:
-            render_tab(raw_df, "강원특별자치도 전체", valid_cols, "sg_all", selected_schools)
+            render_tab(raw_df, "강원특별자치도 전체", valid_cols, "sg_all", all_schools)
             
         for i, sg in enumerate(sigungus):
             with tabs[i+1]:
-                render_tab(raw_df[raw_df['시군'].astype(str) == sg], f"{sg} 지역", valid_cols, f"sg_{sg}", selected_schools)
+                render_tab(raw_df[raw_df['시군'].astype(str) == sg], f"{sg} 지역", valid_cols, f"sg_{sg}", all_schools)
