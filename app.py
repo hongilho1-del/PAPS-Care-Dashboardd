@@ -8,7 +8,6 @@ from sklearn.preprocessing import StandardScaler
 # ─── 1. 웹페이지 설정 및 스타일링 ────────────────────────────────────────────────
 st.set_page_config(page_title="PAPS Care+ Dashboard", layout="wide", initial_sidebar_state="expanded")
 
-# 제목 강조 및 부제목/출처 문구 구성
 st.markdown(
     "<h1 style='margin-top: -20px;'>📊 <b>PAPS CARE+</b> <span style='font-size:0.55em; color:#666; font-weight:normal;'>| 강원특별자치도 학교 데이터 AI 분석 시스템</span></h1>", 
     unsafe_allow_html=True
@@ -40,7 +39,6 @@ def load_raw_data():
                     if kw in str(c): return c
             return None
 
-        # 지표 매핑
         target_mapping = {
             'BMI': find_col(['BMI', '비만', '체질량']),
             '심폐지구력 (왕복오래달리기)': find_col(['왕복', '오래달리기', '심폐']),
@@ -159,53 +157,93 @@ def render_dashboard(tab_df, valid_cols, filters):
         fig.update_layout(height=550, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
         st.plotly_chart(fig, use_container_width=True)
 
-    # 💡 [핵심 수정] 3단 가로형 레이아웃 (집단군 | 운동방향 | 교육프로그램)
+    # 💡 [핵심 해결] 브라우저 창 크기가 작아져도 깨지지 않는 완전 고정형 HTML 표 삽입
     st.markdown("---")
     st.write("### 📋 그룹별 맞춤형 운동 처방 및 교육 프로그램")
 
     sum_df = plot_df.groupby('유형')[[x_axis, y_axis]].mean().round(1)
     counts = plot_df['유형'].value_counts()
 
-    # 가로축 타이틀 (테이블 헤더 역할 - 3칸 분리)
-    head_col1, head_col2, head_col3 = st.columns([1, 2.5, 2.5])
-    with head_col1: st.markdown("##### 📊 분석 집단군")
-    with head_col2: st.markdown("##### 🏃‍♂️ 맞춤형 운동 처방")
-    with head_col3: st.markdown("##### 💊 교육 프로그램 추천")
-    st.markdown("<hr style='margin-top: 0px; margin-bottom: 20px;'>", unsafe_allow_html=True)
+    # CSS 스타일을 적용한 테이블 뼈대 생성
+    html_table = '''
+    <style>
+    .presc-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-family: 'Malgun Gothic', sans-serif; }
+    .presc-table th { background-color: #f8f9fa; padding: 15px; text-align: left; font-size: 16px; border-bottom: 2px solid #dee2e6; color: #333; }
+    .presc-table td { padding: 15px; border-bottom: 1px solid #dee2e6; vertical-align: top; font-size: 14px; line-height: 1.6; color: #444; }
+    .t-title { font-weight: bold; margin-bottom: 10px; display: inline-block; font-size: 15px; }
+    .t-red { color: #c62828; background: #ffebee; padding: 5px 10px; border-radius: 5px; }
+    .t-orange { color: #ef6c00; background: #fff3e0; padding: 5px 10px; border-radius: 5px; }
+    .t-green { color: #2e7d32; background: #e8f5e9; padding: 5px 10px; border-radius: 5px; }
+    .t-blue { color: #1565c0; background: #e3f2fd; padding: 5px 10px; border-radius: 5px; }
+    .t-ul { margin-top: 5px; margin-bottom: 0; padding-left: 20px; }
+    .t-ul li { margin-bottom: 6px; }
+    </style>
+    <table class="presc-table">
+        <tr>
+            <th style="width: 20%;">📊 분석 집단군</th>
+            <th style="width: 40%;">🏃‍♂️ 맞춤형 운동 처방</th>
+            <th style="width: 40%;">💊 교육 프로그램 추천</th>
+        </tr>
+    '''
 
-    # 세로축 전개: 각 그룹을 가로 3칸으로 나란히 배치
+    # 각 그룹별로 행(Row) 생성
     for idx in sum_df.index:
-        col1, col2, col3 = st.columns([1, 2.5, 2.5])
+        count_val = counts.get(idx, 0)
+        mean_val = sum_df.loc[idx, x_axis]
         
-        # 1번째 칸: 집단군 요약 정보
-        with col1:
-            st.markdown("<br>", unsafe_allow_html=True) # 높이 밸런스 맞춤
-            st.metric(label=idx, value=f"{counts.get(idx, 0)}건", delta=f"{x_axis} 평균: {sum_df.loc[idx, x_axis]}", delta_color="off")
-        
-        # 2번째 칸: 운동 처방 (독립된 박스)
-        with col2:
-            if "🔴" in idx:
-                st.error("**[ 저강도 유산소 위주 구성 ]**\n- 관절 무리 없는 걷기, 수영 권장\n- 실내 자전거로 기초 체력 증진\n- 무리한 근력 운동 지양")
-            elif "🟠" in idx:
-                st.warning("**[ 활동량 증대 집중 ]**\n- 흥미 유발 신체 활동 병행\n- 일상적인 움직임 늘리기\n- 비만 단계 진입 적극 예방")
-            elif "🟢" in idx:
-                st.success("**[ 전신 밸런스 유지 ]**\n- 현재 기초 체력 수준 유지\n- 신체 부위별 골고루 발달\n- 주기적인 체력 모니터링")
-            elif "🔵" in idx:
-                st.info("**[ 고강도 심화 트레이닝 ]**\n- 심폐지구력/순발력 극대화\n- 인터벌 트레이닝(HIIT) 소화\n- 전문 개별 스포츠 기술 습득")
+        # 색상 및 내용 매핑
+        if "🔴" in idx:
+            badge = "t-red"
+            ex_title = "저강도 유산소 위주 구성"
+            ex_list = "<li>관절 무리 없는 걷기, 수영 권장</li><li>실내 자전거로 기초 체력 증진</li><li>무리한 근력 운동 지양</li>"
+            ed_title = "건강체력교실 우선 배정"
+            ed_list = "<li>전문 강사 집중 체력 관리</li><li>가정통신문 연계 모니터링</li><li>식습관 및 영양 상담 정기 진행</li>"
+        elif "🟠" in idx:
+            badge = "t-orange"
+            ex_title = "활동량 증대 집중"
+            ex_list = "<li>흥미 유발 신체 활동 병행</li><li>일상적인 움직임 늘리기</li><li>비만 단계 진입 적극 예방</li>"
+            ed_title = "교내 걷기 챌린지 참여"
+            ed_list = "<li>방과 후 스포츠클럽 가입 권장</li><li>또래와 재미 위주 활동 도입</li><li>신체 활동 마일리지 보상</li>"
+        elif "🟢" in idx:
+            badge = "t-green"
+            ex_title = "전신 밸런스 유지"
+            ex_list = "<li>현재 기초 체력 수준 유지</li><li>신체 부위별 골고루 발달</li><li>주기적인 체력 모니터링</li>"
+            ed_title = "정규 체육 수업 충실"
+            ed_list = "<li>1일 1시간 이상 신체활동 권장</li><li>다양한 교내 스포츠 종목 체험</li><li>자발적이고 꾸준한 운동 습관화</li>"
+        elif "🔵" in idx:
+            badge = "t-blue"
+            ex_title = "고강도 심화 트레이닝"
+            ex_list = "<li>심폐지구력/순발력 극대화</li><li>인터벌 트레이닝(HIIT) 소화</li><li>전문 개별 스포츠 기술 습득</li>"
+            ed_title = "학생 스포츠 리더 선발"
+            ed_list = "<li>교내 체육 동아리 멘토 위촉</li><li>학교 대표 선수단 선발 시 우대</li><li>지역 엘리트 체육 프로그램 연계</li>"
+        else:
+            continue
 
-        # 3번째 칸: 교육 프로그램 추천 (독립된 박스)
-        with col3:
-            if "🔴" in idx:
-                st.error("**[ 건강체력교실 우선 배정 ]**\n- 전문 강사 집중 체력 관리\n- 가정통신문 연계 모니터링\n- 식습관 및 영양 상담 정기 진행")
-            elif "🟠" in idx:
-                st.warning("**[ 교내 걷기 챌린지 참여 ]**\n- 방과 후 스포츠클럽 가입 권장\n- 또래와 재미 위주 활동 도입\n- 신체 활동 마일리지 보상")
-            elif "🟢" in idx:
-                st.success("**[ 정규 체육 수업 충실 ]**\n- 1일 1시간 이상 신체활동 권장\n- 다양한 교내 스포츠 종목 체험\n- 자발적이고 꾸준한 운동 습관화")
-            elif "🔵" in idx:
-                st.info("**[ 학생 스포츠 리더 선발 ]**\n- 교내 체육 동아리 멘토 위촉\n- 학교 대표 선수단 선발 시 우대\n- 지역 엘리트 체육 프로그램 연계")
-                
-        # 각 집단군(행) 구분을 위한 점선 라인
-        st.markdown("<hr style='margin-top: 10px; margin-bottom: 10px; border-top: 1px dashed #e0e0e0;'>", unsafe_allow_html=True)
+        # HTML 행(Row) 추가
+        row_html = f'''
+        <tr>
+            <td>
+                <div class="t-title {badge}">{idx}</div>
+                <div style="margin-top: 10px; font-size: 13.5px; color: #555;">
+                    <b>{count_val}개 데이터</b><br>{x_axis} 평균: {mean_val}
+                </div>
+            </td>
+            <td>
+                <div class="t-title">[{ex_title}]</div>
+                <ul class="t-ul">{ex_list}</ul>
+            </td>
+            <td>
+                <div class="t-title">[{ed_title}]</div>
+                <ul class="t-ul">{ed_list}</ul>
+            </td>
+        </tr>
+        '''
+        html_table += row_html
+
+    html_table += "</table>"
+    
+    # 생성된 완전 고정형 표 출력
+    st.markdown(html_table, unsafe_allow_html=True)
 
     with st.expander("🔍 상세 데이터 테이블 보기"):
         st.dataframe(plot_df.drop(columns=['순수학교명', '연도', '시군'], errors='ignore').sort_values(['유형', '학교(연도)']), use_container_width=True)
