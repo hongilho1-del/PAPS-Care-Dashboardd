@@ -513,6 +513,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+st.warning("CHECKPOINT: 이 문구가 보이면 현재 실행 중인 파일은 New project/app.py 입니다.")
+
 st.markdown(
     """
     <div class="hero">
