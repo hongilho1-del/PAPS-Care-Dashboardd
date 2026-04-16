@@ -8,7 +8,7 @@ from sklearn.preprocessing import StandardScaler
 # ─── 1. 웹페이지 설정 및 스타일링 ────────────────────────────────────────────────
 st.set_page_config(page_title="PAPS Care+ Dashboard", layout="wide", initial_sidebar_state="expanded")
 
-# 제목 강조 및 출처 문구 (PAPS CARE+ 강조 및 데이터 용어 정리)
+# 제목 강조 및 부제목/출처 문구 구성
 st.markdown(
     "<h1 style='margin-top: -20px;'>📊 <b>PAPS CARE+</b> <span style='font-size:0.55em; color:#666; font-weight:normal;'>| 강원특별자치도 학교 데이터 AI 분석 시스템</span></h1>", 
     unsafe_allow_html=True
@@ -40,7 +40,7 @@ def load_raw_data():
                     if kw in str(c): return c
             return None
 
-        # 지표 매핑 (친숙한 이름 : 실제 엑셀 열 이름)
+        # 지표 매핑
         target_mapping = {
             'BMI': find_col(['BMI', '비만', '체질량']),
             '심폐지구력 (왕복오래달리기)': find_col(['왕복', '오래달리기', '심폐']),
@@ -51,15 +51,12 @@ def load_raw_data():
         }
         valid_cols = {k: v for k, v in target_mapping.items() if v}
 
-        # 숫자 데이터 정제
         for col in valid_cols.values():
             df[col] = pd.to_numeric(df[col].astype(str).str.replace(r'[^0-9.]', '', regex=True), errors='coerce')
 
-        # 기초 필드 정리
         school_col = '추출학교명' if '추출학교명' in df.columns else df.columns[0]
         df['순수학교명'] = df[school_col].astype(str).str.strip()
         
-        # 연도 추출 및 보정
         if '연도' in df.columns:
             df['연도'] = pd.to_numeric(df['연도'], errors='coerce').fillna(0).astype(int)
         else:
@@ -69,7 +66,6 @@ def load_raw_data():
         df['표시용이름'] = df.apply(lambda row: f"{row['순수학교명']} ({row['연도']})" if row['연도'] > 0 else row['순수학교명'], axis=1)
         df['시군'] = df['시군'].astype(str).str.strip() if '시군' in df.columns else '강원'
 
-        # 성별/학년 표준화
         gender_col = find_col(['성별', '남여', '구분_성별'])
         df['성별'] = df[gender_col].astype(str).str.strip() if gender_col else '전체'
         
@@ -84,9 +80,8 @@ def load_raw_data():
         st.error(f"데이터 로드 중 오류 발생: {e}")
         return None, {}
 
-# ─── 3. AI 군집 분석 함수 (오류 수정됨) ──────────────────────────────────────────
+# ─── 3. AI 군집 분석 함수 ──────────────────────────────────────────
 def get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters):
-    # 1. 원본 열 이름을 유지하며 집계
     raw_x = valid_cols[x_axis]
     raw_y = valid_cols[y_axis]
     
@@ -96,7 +91,6 @@ def get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters):
     
     df_agg = tab_df.groupby(['순수학교명', '표시용이름']).agg(agg_dict).reset_index()
     
-    # 2. 클러스터링용 데이터 정제
     X = df_agg[[raw_x, raw_y]].dropna()
     if len(X) < n_clusters: return pd.DataFrame()
 
@@ -105,7 +99,6 @@ def get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters):
     df_agg.loc[X.index, 'Cluster'] = kmeans.fit_predict(X_scaled)
     df_agg = df_agg.dropna(subset=['Cluster'])
 
-    # 3. 유형 명칭 부여 (BMI 기반 정렬)
     cluster_means = df_agg.groupby('Cluster')[raw_x].mean().sort_values(ascending=False)
     rank_map = {cluster_idx: i for i, cluster_idx in enumerate(cluster_means.index)}
     
@@ -118,7 +111,6 @@ def get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters):
         
     df_agg['유형'] = df_agg['Cluster'].map(rank_map).apply(lambda x: names[int(x)] if x < len(names) else "⚪ 기타")
     
-    # 4. 시각화 편의를 위해 열 이름 변환
     inv_map = {v: k for k, v in valid_cols.items()}
     df_agg = df_agg.rename(columns=inv_map).rename(columns={'표시용이름': '학교(연도)'})
     
@@ -126,7 +118,6 @@ def get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters):
 
 # ─── 4. 통합 렌더링 함수 ────────────────────────────────────────────────────
 def render_dashboard(tab_df, valid_cols, filters):
-    # 성별/학년 필터 선적용 (인구통계학적 특성 반영)
     if filters['gender']: tab_df = tab_df[tab_df['성별'].isin(filters['gender'])]
     if filters['grade']: tab_df = tab_df[tab_df['학년'].isin(filters['grade'])]
     
@@ -146,7 +137,6 @@ def render_dashboard(tab_df, valid_cols, filters):
         st.warning("⚠️ 분석을 수행하기 위한 데이터가 부족합니다.")
         return
 
-    # 연도/지역/학교 필터 후적용 (전체 분포 내 위치 유지)
     if filters['year']: plot_df = plot_df[plot_df['연도'].isin(filters['year'])]
     if filters['region']: plot_df = plot_df[plot_df['시군'].isin(filters['region'])]
     if filters['school']: plot_df = plot_df[plot_df['순수학교명'].isin(filters['school'])]
@@ -169,32 +159,78 @@ def render_dashboard(tab_df, valid_cols, filters):
         fig.update_layout(height=550, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
         st.plotly_chart(fig, use_container_width=True)
 
-st.markdown("---")
-    st.write("### 📋 맞춤형 처방 프로그램 및 운동 방향")
-    
+    # 💡 [핵심 수정] 리스트형 통합 처방 레이아웃
+    st.markdown("---")
+    st.write("### 📋 그룹별 맞춤형 운동 처방 및 교육 프로그램")
+
     sum_df = plot_df.groupby('유형')[[x_axis, y_axis]].mean().round(1)
     counts = plot_df['유형'].value_counts()
-    
-    # 💡 그룹(유형) 개수만큼 세로 단(Column)을 생성하여 수치와 처방을 위아래로 한 묶음으로 배치합니다.
-    met_cols = st.columns(len(sum_df))
-    
-    for i, (idx, row) in enumerate(sum_df.iterrows()):
-        with met_cols[i]:
-            # 1. 상단: 해당 그룹의 이름(예: 고위험군), 데이터 건수, 평균치 표시
-            st.metric(label=idx, value=f"{counts.get(idx, 0)}건", delta=f"{x_axis} 평균: {row[x_axis]}", delta_color="off")
-            
-            # 2. 하단: 바로 아래에 맞춤형 처방 박스 표시 (제목 중복 방지를 위해 #### {idx} 제거)
+
+    # 세로로 그룹을 하나씩 전개
+    for idx in sum_df.index:
+        # 1:3 비율로 왼쪽엔 그룹 요약, 오른쪽엔 통합 처방을 배치
+        col1, col2 = st.columns([1, 3])
+        
+        with col1:
+            st.markdown("<br>", unsafe_allow_html=True) # 줄 맞춤을 위한 여백
+            st.metric(label=idx, value=f"{counts.get(idx, 0)}건", delta=f"{x_axis} 평균: {sum_df.loc[idx, x_axis]}", delta_color="off")
+        
+        with col2:
             if "🔴" in idx:
-                st.error("**🏃‍♂️ 운동 방향:** 저강도 유산소 위주 구성\n\n**💊 처방:** 건강체력교실 우선 배정 및 상담 병행")
+                st.error("""
+                **🏃‍♂️ 운동 방향: 저강도 유산소 위주 구성**
+                - 관절에 무리가 가지 않는 걷기, 수영 권장
+                - 실내 자전거를 통한 기초 체력 증진
+                - 무리한 근력 운동 지양 및 체지방 감소 유도
+                
+                **💊 교육 프로그램: 건강체력교실 우선 배정**
+                - 전문 강사의 집중적인 체력 관리
+                - 가정통신문 연계 모니터링 실시
+                - 식습관 교정 및 영양 상담 정기 진행
+                """)
             elif "🟠" in idx:
-                st.warning("**🏃‍♂️ 운동 방향:** 뉴스포츠 등 신체 활동량 증대\n\n**💊 처방:** 교내 걷기 챌린지 및 스포츠클럽 참여 권장")
+                st.warning("""
+                **🏃‍♂️ 운동 방향: 뉴스포츠 등 활동량 증대**
+                - 흥미를 유발할 수 있는 신체 활동 병행
+                - 일상적인 움직임을 늘려 활동량 확보
+                - 과체중 및 비만 단계 진입 사전 예방
+                
+                **💊 교육 프로그램: 교내 걷기 챌린지 참여**
+                - 방과 후 스포츠클럽 가입 적극 권장
+                - 또래와 함께하는 재미 위주의 프로그램 도입
+                - 신체 활동 마일리지 등 보상 시스템 활용
+                """)
             elif "🟢" in idx:
-                st.success("**🏃‍♂️ 운동 방향:** 전신 밸런스 운동 권장\n\n**💊 처방:** 일상적 신체활동 습관화 지속")
+                st.success("""
+                **🏃‍♂️ 운동 방향: 전신 근력 및 유연성 밸런스**
+                - 현재의 기초 체력 수준 꾸준히 유지
+                - 신체 각 부위를 골고루 발달시키는 밸런스 운동
+                - 기초 체력 측정을 통한 지속적 모니터링
+                
+                **💊 교육 프로그램: 정규 체육 수업 충실**
+                - 1일 1시간 이상 일상적 신체활동 권장
+                - 다양한 교내 스포츠 종목 체험 기회 제공
+                - 자발적이고 꾸준한 운동 습관화 형성
+                """)
             elif "🔵" in idx:
-                st.info("**🏃‍♂️ 운동 방향:** 고강도 심화 트레이닝 및 기술 습득\n\n**💊 처방:** 스포츠 리더 선발 및 엘리트 체육 연계")
+                st.info("""
+                **🏃‍♂️ 운동 방향: 고강도 심화 트레이닝**
+                - 심폐지구력과 순발력 극대화
+                - 고강도 인터벌 트레이닝(HIIT) 소화 가능
+                - 전문적인 개별 스포츠 기술 습득
+                
+                **💊 교육 프로그램: 학생 스포츠 리더 선발**
+                - 교내 체육 동아리 멘토 리더십 부여
+                - 학교 대표 선수단 선발 시 우대
+                - 지역 엘리트 체육 프로그램 연계 지원
+                """)
+        
+        # 다음 그룹과의 구분을 위한 은은한 점선 추가
+        st.markdown("<hr style='margin-top: 10px; margin-bottom: 10px; border-top: 1px dashed #e0e0e0;'>", unsafe_allow_html=True)
 
     with st.expander("🔍 상세 데이터 테이블 보기"):
         st.dataframe(plot_df.drop(columns=['순수학교명', '연도', '시군'], errors='ignore').sort_values(['유형', '학교(연도)']), use_container_width=True)
+
 # ─── 5. 메인 실행 로직 ─────────────────────────────────────────────────────────────
 raw_df, meta = load_raw_data()
 if raw_df is not None:
