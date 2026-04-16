@@ -5,212 +5,235 @@ import plotly.express as px
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
-# ─── 1. 웹페이지 설정 및 하드코딩된 디자인(CSS) 적용 ──────────────────────────────────
+# ─── 1. 웹페이지 설정 및 스타일링 ────────────────────────────────────────────────
 st.set_page_config(page_title="PAPS Care+ Dashboard", layout="wide", initial_sidebar_state="expanded")
 
-# 전문 사이트 느낌을 위한 강력한 CSS 주입
-st.markdown("""
-    <style>
-    /* 배경 및 기본 폰트 */
-    .main { background-color: #f8fafc; }
-    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-    * { font-family: 'Pretendard', -apple-system, sans-serif; }
+# 제목 강조 및 부제목/출처 문구 구성
+st.markdown(
+    "<h1 style='margin-top: -20px;'>📊 <b>PAPS CARE+</b> <span style='font-size:0.55em; color:#666; font-weight:normal;'>| 강원특별자치도 학교 데이터 AI 분석 시스템</span></h1>", 
+    unsafe_allow_html=True
+)
 
-    /* 스트림릿 기본 요소 숨기기 */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
+st.markdown(
+    "<p style='color: #7f8c8d; font-size: 0.95em; margin-top: -15px; margin-bottom: 25px;'>"
+    "* 본 시스템은 <b>학교알리미</b> 공시 데이터를 기반으로 학생들의 건강체력평가(PAPS)를 AI로 분석한 결과를 제공합니다."
+    "</p>", 
+    unsafe_allow_html=True
+)
 
-    /* 상단 헤더 섹션 */
-    .hero-section {
-        background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
-        padding: 40px;
-        border-radius: 20px;
-        color: white;
-        margin-bottom: 30px;
-        box-shadow: 0 10px 25px rgba(30, 58, 138, 0.2);
-    }
-    .hero-title { font-size: 32px; font-weight: 800; margin-bottom: 5px; letter-spacing: -1px; }
-    .hero-sub { font-size: 16px; opacity: 0.9; font-weight: 300; }
-
-    /* 분석 카드 스타일 */
-    .analysis-card {
-        background: white;
-        padding: 25px;
-        border-radius: 15px;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        margin-bottom: 25px;
-    }
-
-    /* 가로형 리포트 테이블 (이미지 요청사항 반영) */
-    .paps-table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
-        background: white;
-        border-radius: 15px;
-        overflow: hidden;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-        margin-top: 20px;
-    }
-    .paps-table th {
-        background-color: #f1f5f9;
-        color: #475569;
-        padding: 20px;
-        text-align: left;
-        font-weight: 700;
-        border-bottom: 2px solid #e2e8f0;
-    }
-    .paps-table td {
-        padding: 25px 20px;
-        border-bottom: 1px solid #f1f5f9;
-        vertical-align: top;
-    }
-    
-    /* 뱃지 스타일 */
-    .tag {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 8px;
-        font-size: 12px;
-        font-weight: 700;
-        margin-bottom: 10px;
-    }
-    .tag-red { background: #fee2e2; color: #b91c1c; }
-    .tag-orange { background: #ffedd5; color: #c2410c; }
-    .tag-green { background: #dcfce7; color: #15803d; }
-    .tag-blue { background: #dbeafe; color: #1d4ed8; }
-
-    .content-box { font-size: 14.5px; line-height: 1.6; color: #334155; }
-    .content-box b { color: #1e293b; display: block; margin-bottom: 8px; font-size: 15px; }
-    </style>
-""", unsafe_allow_html=True)
-
-# ─── 2. 데이터 로드 ──────────────────────────────────────────────────────────
+# ─── 2. 데이터 로드 및 전처리 ──────────────────────────────────────────────────
 @st.cache_data
 def load_raw_data():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     file_path = os.path.join(base_dir, 'data', 'PAPS_Combined_Data.xlsx')
-    if not os.path.exists(file_path): return None, {}
+
+    if not os.path.exists(file_path):
+        return None, {}
+
     try:
         df = pd.read_excel(file_path)
         df.columns = df.columns.str.strip()
-        def find_col(kws):
+        
+        def find_col(keywords):
             for c in df.columns:
-                for kw in kws:
+                for kw in keywords:
                     if kw in str(c): return c
             return None
-        t_map = {
+
+        # 지표 매핑
+        target_mapping = {
             'BMI': find_col(['BMI', '비만', '체질량']),
-            '심폐지구력': find_col(['왕복', '오래달리기', '심폐']),
-            '근력/근지구력': find_col(['악력', '팔굽혀', '말아올리기']),
-            '유연성': find_col(['앉아윗몸', '유연성']),
-            '순발력': find_col(['제자리멀리', '순발력'])
+            '심폐지구력 (왕복오래달리기)': find_col(['왕복', '오래달리기', '심폐']),
+            '근력 (악력)': find_col(['악력']),
+            '근력 (팔굽혀/말아올리기)': find_col(['팔굽혀', '말아올리기']),
+            '유연성 (앉아윗몸)': find_col(['앉아윗몸', '유연성']),
+            '순발력 (제자리멀리뛰기)': find_col(['제자리멀리', '순발력'])
         }
-        valid = {k: v for k, v in t_map.items() if v}
-        for col in valid.values():
+        valid_cols = {k: v for k, v in target_mapping.items() if v}
+
+        for col in valid_cols.values():
             df[col] = pd.to_numeric(df[col].astype(str).str.replace(r'[^0-9.]', '', regex=True), errors='coerce')
-        df['순수학교명'] = df['추출학교명'].astype(str).str.strip() if '추출학교명' in df.columns else df.iloc[:,0]
-        df['연도'] = pd.to_numeric(df['연도'], errors='coerce').fillna(0).astype(int) if '연도' in df.columns else 0
+
+        school_col = '추출학교명' if '추출학교명' in df.columns else df.columns[0]
+        df['순수학교명'] = df[school_col].astype(str).str.strip()
+        
+        if '연도' in df.columns:
+            df['연도'] = pd.to_numeric(df['연도'], errors='coerce').fillna(0).astype(int)
+        else:
+            df['연도'] = df[school_col].astype(str).str.extract(r'(20\d{2}|19\d{2})')[0]
+            df['연도'] = pd.to_numeric(df['연도'], errors='coerce').fillna(0).astype(int)
+
+        df['표시용이름'] = df.apply(lambda row: f"{row['순수학교명']} ({row['연도']})" if row['연도'] > 0 else row['순수학교명'], axis=1)
         df['시군'] = df['시군'].astype(str).str.strip() if '시군' in df.columns else '강원'
-        df['성별'] = df[find_col(['성별','남여'])] if find_col(['성별','남여']) else '전체'
-        df['학년'] = df[find_col(['학년'])] if find_col(['학년']) else '전체'
-        return df, {'valid': valid}
-    except: return None, {}
 
-# ─── 3. 메인 로직 ─────────────────────────────────────────────────────────────
-raw_df, meta = load_raw_data()
-if raw_df is not None:
-    # 1. 헤더 출력
-    st.markdown("""
-        <div class="hero-section">
-            <div class="hero-title">📊 PAPS CARE+</div>
-            <div class="hero-sub">강원특별자치도 학교 데이터 AI 분석 시스템</div>
-        </div>
-    """, unsafe_allow_html=True)
-
-    # 2. 사이드바 (필터)
-    with st.sidebar:
-        st.markdown("### 🔍 데이터 필터링")
-        s_year = st.multiselect("📅 연도", sorted(raw_df['연도'].unique()), placeholder="전체 연도")
-        s_region = st.multiselect("📍 시·군", sorted(raw_df['시군'].unique()), placeholder="전체 지역")
-        s_grade = st.multiselect("🎓 학년", sorted(raw_df['학년'].unique()), placeholder="전체 학년")
-        s_gender = st.multiselect("👫 성별", sorted(raw_df['성별'].unique()), placeholder="전체 성별")
+        gender_col = find_col(['성별', '남여', '구분_성별'])
+        df['성별'] = df[gender_col].astype(str).str.strip() if gender_col else '전체'
         
-        tmp_df = raw_df.copy()
-        if s_year: tmp_df = tmp_df[tmp_df['연도'].isin(s_year)]
-        if s_region: tmp_df = tmp_df[tmp_df['시군'].isin(s_region)]
-        s_school = st.multiselect("🏫 학교명 검색", sorted(tmp_df['순수학교명'].unique()), placeholder="전체 학교")
+        grade_col = find_col(['학년', '구분_학년'])
+        if grade_col:
+            df['학년'] = df[grade_col].astype(str).str.replace('학년', '', regex=False).str.strip() + '학년'
+        else:
+            df['학년'] = '전체'
 
-    # 3. 분석 설정 (카드 형태)
-    st.markdown('<div class="analysis-card">', unsafe_allow_html=True)
-    c1, c2, c3 = st.columns([2, 2, 2])
-    with c1: x_ax = st.selectbox("수평축 지표 (X)", list(meta['valid'].keys()), index=0)
-    with c2: y_ax = st.selectbox("수직축 지표 (Y)", list(meta['valid'].keys()), index=1)
-    with c3: n_cl = st.slider("AI 군집 세분화", 2, 4, 3)
-    st.markdown('</div>', unsafe_allow_html=True)
+        return df, {'school_col': school_col, 'valid_cols': valid_cols}
+    except Exception as e:
+        st.error(f"데이터 로드 중 오류 발생: {e}")
+        return None, {}
 
-    # 4. AI 군집 분석
-    raw_x, raw_y = meta['valid'][x_ax], meta['valid'][y_ax]
-    df_agg = raw_df.groupby(['순수학교명', '연도', '시군']).agg({v:'mean' for v in meta['valid'].values()}).reset_index()
-    X = df_agg[[raw_x, raw_y]].dropna()
+# ─── 3. AI 군집 분석 함수 ──────────────────────────────────────────
+def get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters):
+    raw_x = valid_cols[x_axis]
+    raw_y = valid_cols[y_axis]
     
-    if len(X) >= n_cl:
-        kmeans = KMeans(n_clusters=n_cl, random_state=42, n_init=10)
-        df_agg.loc[X.index, 'Cluster'] = kmeans.fit_predict(StandardScaler().fit_transform(X))
-        df_agg = df_agg.dropna(subset=['Cluster'])
+    agg_dict = {v: 'mean' for v in valid_cols.values()}
+    agg_dict['연도'] = 'first'
+    agg_dict['시군'] = 'first'
+    
+    df_agg = tab_df.groupby(['순수학교명', '표시용이름']).agg(agg_dict).reset_index()
+    
+    X = df_agg[[raw_x, raw_y]].dropna()
+    if len(X) < n_clusters: return pd.DataFrame()
+
+    X_scaled = StandardScaler().fit_transform(X)
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+    df_agg.loc[X.index, 'Cluster'] = kmeans.fit_predict(X_scaled)
+    df_agg = df_agg.dropna(subset=['Cluster'])
+
+    cluster_means = df_agg.groupby('Cluster')[raw_x].mean().sort_values(ascending=False)
+    rank_map = {cluster_idx: i for i, cluster_idx in enumerate(cluster_means.index)}
+    
+    if n_clusters == 2:
+        names = ["🔴 관리 필요군", "🔵 건강 양호군"]
+    elif n_clusters == 3:
+        names = ["🔴 고위험군", "🟢 일반군", "🔵 건강 우수군"]
+    else:
+        names = ["🔴 고위험군", "🟠 중점 관리군", "🟢 일반군", "🔵 건강 우수군"]
         
-        # 필터 적용
-        if s_year: df_agg = df_agg[df_agg['연도'].isin(s_year)]
-        if s_region: df_agg = df_agg[df_agg['시군'].isin(s_region)]
-        if s_school: df_agg = df_agg[df_agg['순수학교명'].isin(s_school)]
+    df_agg['유형'] = df_agg['Cluster'].map(rank_map).apply(lambda x: names[int(x)] if x < len(names) else "⚪ 기타")
+    
+    inv_map = {v: k for k, v in valid_cols.items()}
+    df_agg = df_agg.rename(columns=inv_map).rename(columns={'표시용이름': '학교(연도)'})
+    
+    return df_agg
 
-        # 차트 출력
-        means = df_agg.groupby('Cluster')[raw_x].mean().sort_values(ascending=False)
-        rank = {idx: i for i, idx in enumerate(means.index)}
-        names = {2:["🔴 관리필요", "🔵 건강양호"], 3:["🔴 고위험", "🟢 일반", "🔵 우수"], 4:["🔴 고위험", "🟠 중점관리", "🟢 일반", "🔵 우수"]}[n_cl]
-        df_agg['유형'] = df_agg['Cluster'].map(rank).apply(lambda x: names[int(x)] if x < len(names) else "⚪ 기타")
+# ─── 4. 통합 렌더링 함수 ────────────────────────────────────────────────────
+def render_dashboard(tab_df, valid_cols, filters):
+    if filters['gender']: tab_df = tab_df[tab_df['성별'].isin(filters['gender'])]
+    if filters['grade']: tab_df = tab_df[tab_df['학년'].isin(filters['grade'])]
+    
+    col_set1, col_set2 = st.columns([1, 3])
+    metrics = list(valid_cols.keys())
 
-        fig = px.scatter(df_agg, x=raw_x, y=raw_y, color='유형', text='순수학교명', labels={raw_x:x_ax, raw_y:y_ax},
-                         color_discrete_map={"🔴 관리필요":"#ef4444","🔴 고위험":"#ef4444","🟠 중점관리":"#f97316","🟢 일반":"#22c55e","🔵 우수":"#3b82f6","🔵 건강양호":"#3b82f6"})
-        fig.update_layout(height=500, margin=dict(t=10, b=10, l=10, r=10), plot_bgcolor='white')
+    with col_set1:
+        st.write("### ⚙️ 분석 지표")
+        x_axis = st.selectbox("X축 (주로 BMI)", metrics, index=0)
+        y_axis = st.selectbox("Y축 (주로 체력지표)", metrics, index=min(1, len(metrics)-1))
+        n_clusters = st.slider("군집 세분화 (개)", 2, 4, 3)
+        is_mobile = st.toggle("📱 모바일 최적화")
+        
+    plot_df = get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters)
+
+    if plot_df.empty:
+        st.warning("⚠️ 분석을 수행하기 위한 데이터가 부족합니다.")
+        return
+
+    if filters['year']: plot_df = plot_df[plot_df['연도'].isin(filters['year'])]
+    if filters['region']: plot_df = plot_df[plot_df['시군'].isin(filters['region'])]
+    if filters['school']: plot_df = plot_df[plot_df['순수학교명'].isin(filters['school'])]
+        
+    if plot_df.empty:
+        st.info("💡 선택하신 필터 조건에 맞는 데이터가 없습니다.")
+        return
+
+    with col_set2:
+        color_map = {
+            "🔴 고위험군": "#EF5350", "🔴 관리 필요군": "#EF5350", "🟠 중점 관리군": "#FFB74D", 
+            "🟢 일반군": "#66BB6A", "🔵 건강 우수군": "#42A5F5", "🔵 건강 양호군": "#42A5F5"
+        }
+        fig = px.scatter(
+            plot_df, x=x_axis, y=y_axis, color='유형', text='학교(연도)',
+            hover_name='학교(연도)', color_discrete_map=color_map,
+            title=f"🏫 통합 건강 데이터 AI 분석 결과"
+        )
+        fig.update_traces(textposition='top center', marker=dict(size=12 if is_mobile else 22, line=dict(width=2, color='white')))
+        fig.update_layout(height=550, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
         st.plotly_chart(fig, use_container_width=True)
 
-        # 5. 가로형 테이블 리포트 (가장 중요한 부분)
-        st.markdown("<h3 style='margin-top:40px;'>📋 그룹별 맞춤형 처방 리포트</h3>", unsafe_allow_html=True)
-        sum_df = df_agg.groupby('유형')[[raw_x, raw_y]].mean().round(1)
-        
-        table_html = """
-        <table class="paps-table">
-            <tr>
-                <th style="width: 20%;">📊 분석 집단군</th>
-                <th style="width: 40%;">🏃‍♂️ 맞춤형 운동 처방</th>
-                <th style="width: 40%;">💊 교육 프로그램 추천</th>
-            </tr>
-        """
-        
-        for idx in sum_df.index:
-            t_class = "tag-red" if "🔴" in idx else "tag-orange" if "🟠" in idx else "tag-green" if "🟢" in idx else "tag-blue"
-            p_data = {
-                "🔴": ("기초 체력 증진 루틴", "- 관절 무리 없는 걷기, 수영 권장<br>- 실내 자전거 등 저강도 유산소 활동<br>- 급격한 운동보다 생활 속 움직임 유도", 
-                       "건강체력교실 집중 케어", "- 전문 강사의 1:1 밀착 체력 관리<br>- 영양 상담 및 가정 식단 모니터링 연계"),
-                "🟠": ("뉴스포츠 흥미 유발", "- 디스크골프, 킨볼 등 뉴스포츠 참여<br>- 일일 신체활동 마일리지 제도 활용<br>- 심폐지구력 향상을 위한 단계적 트레이닝", 
-                       "방과 후 스포츠클럽 권장", "- 또래와 함께하는 팀 스포츠 활동 도입<br>- 체육에 대한 긍정적 인식 변화 교육"),
-                "🟢": ("전신 밸런스 유지", "- 신체 부위별 균형 있는 근력 운동<br>- 유연성 확보를 위한 꾸준한 스트레칭<br>- 현재의 우수한 체력 수준 지속 모니터링", 
-                       "자율 체육 활동 습관화", "- 1인 1운동 생활 습관 정착 지원<br>- 다양한 종목 체험을 통한 흥미 유지"),
-                "🔵": ("고강도 심화 트레이닝", "- 고강도 인터벌 트레이닝(HIIT) 소화<br>- 전문 스포츠 기술 습득 및 심화 과정<br>- 개인별 맞춤형 근지구력 강화 세션", 
-                       "학생 스포츠 리더 선발", "- 체육 동아리 멘토링 리더 활동 권장<br>- 지역 사회 엘리트 체육 프로그램 연계")
-            }[idx[0]]
+    # 💡 [핵심 수정] 세로: 집단군 / 가로: 운동처방 & 교육프로그램 레이아웃 적용
+    st.markdown("---")
+    st.write("### 📋 그룹별 맞춤형 운동 처방 및 교육 프로그램")
 
-            table_html += f"""
-            <tr>
-                <td>
-                    <span class="tag {t_class}">{idx}</span><br>
-                    <div style="font-size:13px; color:#64748b;">{x_ax} 평균: {sum_df.loc[idx, raw_x]}</div>
-                </td>
-                <td><div class="content-box"><b>[{p_data[0]}]</b>{p_data[1]}</div></td>
-                <td><div class="content-box"><b>[{p_data[2]}]</b>{p_data[3]}</div></td>
-            </tr>
-            """
-        st.markdown(table_html + "</table>", unsafe_allow_html=True)
+    sum_df = plot_df.groupby('유형')[[x_axis, y_axis]].mean().round(1)
+    counts = plot_df['유형'].value_counts()
+
+    # 가로축 타이틀 (테이블 헤더 역할)
+    head_col1, head_col2, head_col3 = st.columns([1.2, 2, 2])
+    with head_col1: st.markdown("##### 📊 분석 집단군")
+    with head_col2: st.markdown("##### 🏃‍♂️ 맞춤형 운동 처방")
+    with head_col3: st.markdown("##### 💊 교육 프로그램 추천")
+    st.markdown("<hr style='margin-top: 0px; margin-bottom: 20px;'>", unsafe_allow_html=True)
+
+    # 세로축 전개 (각 그룹별로 한 줄씩 출력)
+    for idx in sum_df.index:
+        col1, col2, col3 = st.columns([1.2, 2, 2])
+        
+        # 첫 번째 열: 집단군 요약 정보
+        with col1:
+            st.metric(label=idx, value=f"{counts.get(idx, 0)}건", delta=f"{x_axis} 평균: {sum_df.loc[idx, x_axis]}", delta_color="off")
+        
+        # 두 번째 열: 운동 처방
+        with col2:
+            if "🔴" in idx:
+                st.error("**저강도 유산소 위주 구성**\n\n관절에 무리가 가지 않는 걷기, 수영, 실내 자전거 등을 통한 기초 체력 증진 및 체지방 감소 유도.")
+            elif "🟠" in idx:
+                st.warning("**뉴스포츠 등 활동량 증대**\n\n흥미를 유발할 수 있는 신체 활동을 통해 일상적인 움직임을 늘리고 과체중 진입 예방.")
+            elif "🟢" in idx:
+                st.success("**전신 근력 및 유연성 밸런스**\n\n현재의 체력을 유지하면서 신체 각 부위를 골고루 발달시킬 수 있는 밸런스 운동.")
+            elif "🔵" in idx:
+                st.info("**고강도 심화 트레이닝**\n\n우수한 체력을 바탕으로 심폐지구력과 순발력을 극대화하는 고강도 인터벌 트레이닝(HIIT) 및 스포츠 기술 습득.")
+
+        # 세 번째 열: 교육 프로그램 추천
+        with col3:
+            if "🔴" in idx:
+                st.error("**건강체력교실 우선 배정**\n\n전문 강사의 집중 관리, 가정통신문 연계 식습관 및 영양 상담 정기 진행.")
+            elif "🟠" in idx:
+                st.warning("**교내 걷기 챌린지 참여**\n\n방과 후 스포츠클럽 가입 적극 권장 및 또래와 함께하는 재미 위주의 교내 프로그램 도입.")
+            elif "🟢" in idx:
+                st.success("**정규 체육 수업 충실**\n\n1일 1시간 이상 일상적 신체활동 습관화 및 다양한 스포츠 종목 체험을 통한 체력 유지.")
+            elif "🔵" in idx:
+                st.info("**학생 스포츠 리더 선발**\n\n체육 동아리 멘토 위촉, 학교 대표 선수단 선발 및 지역 엘리트 체육 프로그램 연계 지원.")
+                
+        st.markdown("<br>", unsafe_allow_html=True) # 행 사이의 여백
+
+    with st.expander("🔍 상세 데이터 테이블 보기"):
+        st.dataframe(plot_df.drop(columns=['순수학교명', '연도', '시군'], errors='ignore').sort_values(['유형', '학교(연도)']), use_container_width=True)
+
+# ─── 5. 메인 실행 로직 ─────────────────────────────────────────────────────────────
+raw_df, meta = load_raw_data()
+if raw_df is not None:
+    st.markdown("### 📍 분석 데이터 필터링")
+    
+    years = sorted([y for y in raw_df['연도'].unique() if y > 0])
+    sigungus = sorted(raw_df['시군'].unique())
+    grades = sorted([g for g in raw_df['학년'].unique() if '전체' not in g])
+    genders = sorted([g for g in raw_df['성별'].unique() if '전체' not in g])
+
+    f1, f2, f3, f4, f5 = st.columns(5)
+    with f1: s_year = st.multiselect("📅 연도", options=years, placeholder="전체")
+    with f2: s_region = st.multiselect("📍 시·군", options=sigungus, placeholder="전체")
+    with f3: s_grade = st.multiselect("🎓 학년", options=grades, placeholder="전체")
+    with f4: s_gender = st.multiselect("👫 성별", options=genders, placeholder="남/여 전체")
+    
+    tmp = raw_df.copy()
+    if s_year: tmp = tmp[tmp['연도'].isin(s_year)]
+    if s_region: tmp = tmp[tmp['시군'].isin(s_region)]
+    if s_grade: tmp = tmp[tmp['학년'].isin(s_grade)]
+    if s_gender: tmp = tmp[tmp['성별'].isin(s_gender)]
+    f_schools = sorted(tmp['순수학교명'].unique())
+    
+    with f5: s_school = st.multiselect("🏫 학교명", options=f_schools, placeholder="전체")
+
+    filters = {'year': s_year, 'region': s_region, 'grade': s_grade, 'gender': s_gender, 'school': s_school}
+
+    # 필터가 적용된 통합 리포트 렌더링
+    render_dashboard(raw_df, meta['valid_cols'], filters)
