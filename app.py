@@ -7,7 +7,7 @@ from sklearn.preprocessing import StandardScaler
 
 # ─── 1. 웹페이지 설정 ───────────────────────────────────────────────────────
 st.set_page_config(page_title="PAPS Care+ Real-time Dashboard", layout="wide", initial_sidebar_state="expanded")
-st.title("📊 PAPS Care+ : 강원특별자치도 학교 실데이터 AI 분석 시스템")
+st.title("📊 PAPS Care+ ")
 
 # ─── 2. 데이터 로드 ──────────────────────────────────────────────────────────
 @st.cache_data
@@ -92,14 +92,12 @@ def get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters):
 
 # ─── 4. 탭별 렌더링 함수 ──────────────────────────────────────────────────────
 def render_tab(tab_df, tab_label, valid_cols, unique_key, all_schools):
-    st.subheader(f"📍 {tab_label} 분석 리포트")
-    
-    # 💡 [핵심 수정] 검색창을 최상단에서 리포트 제목 바로 아래로 이동
+    # 💡 탭별 검색창 (상단 공간 확보를 위해 불필요한 제목 삭제)
     selected_schools = st.multiselect(
-        "🔎 데이터를 확인하고 싶은 학교를 선택하세요 (비워두면 전체 학교가 표시됩니다)", 
+        f"🔎 {tab_label} 데이터에서 확인하고 싶은 학교를 검색하세요 (비워두면 전체 표시)", 
         options=all_schools, 
         placeholder="학교명 입력 (예: 솔올중)",
-        key=f"search_{unique_key}" # 각 탭마다 독립적으로 검색할 수 있도록 키 설정
+        key=f"search_{unique_key}" 
     )
     st.markdown("---")
     
@@ -119,7 +117,7 @@ def render_tab(tab_df, tab_label, valid_cols, unique_key, all_schools):
         st.warning("⚠️ 지표 데이터가 부족하여 AI 분석을 수행할 수 없습니다.")
         return
 
-    # 축 범위 고정 (학교를 검색해도 차트의 전체 기준점이 틀어지지 않도록)
+    # 축 범위 고정
     x_min, x_max = plot_df[x_axis].min(), plot_df[x_axis].max()
     y_min, y_max = plot_df[y_axis].min(), plot_df[y_axis].max()
     x_margin = (x_max - x_min) * 0.1 if x_max != x_min else 1
@@ -145,7 +143,7 @@ def render_tab(tab_df, tab_label, valid_cols, unique_key, all_schools):
             text='학교(연도)', 
             hover_name='학교(연도)', 
             color_discrete_map=color_discrete_map,
-            title=f"🏫 {tab_label} 건강 등급 분포" + (" (검색 결과)" if selected_schools else " (전체보기)")
+            title=f"🏫 {tab_label} 건강 등급 분포" + (" (검색 결과)" if selected_schools else "")
         )
         
         fig.update_traces(
@@ -199,16 +197,16 @@ def render_tab(tab_df, tab_label, valid_cols, unique_key, all_schools):
 raw_df, meta = load_raw_data()
 if raw_df is not None:
     valid_cols = meta['valid_cols']
-    
-    # 💡 모든 탭에서 공통으로 사용할 학교 목록 (전역 변수로 생성)
     all_schools = sorted(raw_df['순수학교명'].astype(str).unique().tolist())
 
-    st.markdown("### 📊 분석 뷰(View) 선택")
+    # 💡 [핵심 반영] 메인 리포트 제목 바로 아래에 버튼과 탭 위치
+    st.markdown("### 📍 강원특별자치도 전체 분석 리포트")
     view_option = st.radio("보기 방식", ["📅 연도별 비교", "📍 시·군별 비교"], horizontal=True, label_visibility="collapsed")
     st.markdown("---")
 
     if view_option == "📅 연도별 비교":
         years = sorted([y for y in raw_df['연도'].unique() if y > 0])
+        # 💡 강원 전체보기 탭이 항상 최우측(혹은 첫번째)에 생성됨
         tab_labels = ["🌐 강원 전체보기"] + [f"📅 {y}년" for y in years]
         tabs = st.tabs(tab_labels)
 
