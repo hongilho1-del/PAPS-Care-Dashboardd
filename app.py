@@ -8,12 +8,12 @@ from sklearn.preprocessing import StandardScaler
 # ─── 1. 웹페이지 설정 ───────────────────────────────────────────────────────
 st.set_page_config(page_title="PAPS Care+ Real-time Dashboard", layout="wide", initial_sidebar_state="expanded")
 
-# 💡 [핵심 수정 1] 제목과 부제목을 1줄에 두되, 크기와 굵기를 다르게 하여 시각적으로 완벽히 분리 (실데이터 -> 데이터)
+# 제목과 부제목 시각적 분리 및 강조
 st.markdown(
     "<h1 style='margin-top: -20px;'>📊 <b>PAPS CARE+</b> <span style='font-size:0.55em; color:#666; font-weight:normal;'>| 강원특별자치도 학교 데이터 AI 분석 시스템</span></h1>", 
     unsafe_allow_html=True
 )
-st.markdown("<br>", unsafe_allow_html=True) # 타이틀 아래 여백 살짝 추가
+st.markdown("<br>", unsafe_allow_html=True)
 
 # ─── 2. 데이터 로드 ──────────────────────────────────────────────────────────
 @st.cache_data
@@ -68,6 +68,13 @@ def load_raw_data():
         if '시군' not in df.columns:
             df['시군'] = '강원'
 
+        # 💡 [핵심] 성별(남/여) 컬럼 찾기 및 표준화
+        gender_col = find_col(['성별', '남여', '구분_성별'])
+        if gender_col:
+            df['성별'] = df[gender_col].astype(str).str.strip()
+        else:
+            df['성별'] = '전체'
+
         return df, {'school_col': school_col, 'valid_cols': valid_cols}
     except Exception as e:
         st.error(f"데이터를 읽는 중 오류가 발생했습니다: {e}")
@@ -110,7 +117,16 @@ def get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters):
     return df
 
 # ─── 4. 통합 렌더링 함수 (단일 뷰 구조) ───────────────────────────────────────────
-def render_dashboard(tab_df, valid_cols, selected_years, selected_regions, selected_schools):
+def render_dashboard(tab_df, valid_cols, selected_years, selected_regions, selected_schools, selected_genders):
+    
+    # 💡 성별 필터는 데이터 '집계 전'에 적용해야 남/여의 정확한 평균값을 도출할 수 있습니다.
+    if selected_genders:
+        tab_df = tab_df[tab_df['성별'].isin(selected_genders)]
+        
+        if tab_df.empty:
+            st.info("💡 선택하신 성별에 해당하는 데이터가 없습니다.")
+            return
+
     col_set1, col_set2 = st.columns([1, 3])
     metrics = list(valid_cols.keys())
 
@@ -134,6 +150,7 @@ def render_dashboard(tab_df, valid_cols, selected_years, selected_regions, selec
     global_x_range = [x_min - x_margin, x_max + x_margin]
     global_y_range = [y_min - y_margin, y_max + y_margin]
 
+    # 연도, 지역, 학교 필터는 AI 군집화 '후'에 숨김 처리용으로 적용합니다.
     if selected_years: plot_df = plot_df[plot_df['연도'].isin(selected_years)]
     if selected_regions: plot_df = plot_df[plot_df['시군'].isin(selected_regions)]
     if selected_schools: plot_df = plot_df[plot_df['순수학교명'].isin(selected_schools)]
@@ -142,9 +159,11 @@ def render_dashboard(tab_df, valid_cols, selected_years, selected_regions, selec
         st.info("💡 선택하신 조건에 해당하는 데이터가 없습니다.")
         return
 
+    # 다중 조건에 맞춘 동적 차트 제목 생성
     title_parts = []
     if selected_years: title_parts.append(f"{','.join(map(str, selected_years))}년")
     if selected_regions: title_parts.append(f"{','.join(selected_regions)}")
+    if selected_genders: title_parts.append(f"({','.join(selected_genders)})")
     if selected_schools: title_parts.append("특정학교")
     chart_title = "🏫 " + (" ".join(title_parts) + " 분석 결과" if title_parts else "강원특별자치도 전체 분석 결과")
 
@@ -208,26 +227,33 @@ raw_df, meta = load_raw_data()
 if raw_df is not None:
     valid_cols = meta['valid_cols']
     
-    # 💡 [핵심 수정 2] "다중 조건 데이터 검색" 문구 삭제 완료
     years = sorted([y for y in raw_df['연도'].unique() if y > 0])
     sigungus = sorted(raw_df['시군'].astype(str).unique().tolist())
     if '강원' in sigungus: sigungus.remove('강원')
+    
+    genders = sorted([g for g in raw_df['성별'].unique() if g not in ['nan', 'None', '전체']])
 
-    filter_col1, filter_col2, filter_col3 = st.columns(3)
+    # 💡 4열로 나누어 연도, 시군, 성별, 학교를 한 줄에 나란히 배치합니다.
+    filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(4)
     
     with filter_col1:
-        selected_years = st.multiselect("📅 연도", options=years, placeholder="모든 연도 (비워두면 전체)")
+        selected_years = st.multiselect("📅 연도", options=years, placeholder="모든 연도")
     
     with filter_col2:
-        selected_regions = st.multiselect("📍 시·군", options=sigungus, placeholder="모든 지역 (비워두면 전체)")
+        selected_regions = st.multiselect("📍 시·군", options=sigungus, placeholder="모든 지역")
+        
+    with filter_col3:
+        selected_genders = st.multiselect("👫 성별", options=genders, placeholder="남/여 전체")
 
+    # 선택한 연도/지역/성별에 해당하는 학교만 남기기
     temp_df = raw_df.copy()
     if selected_years: temp_df = temp_df[temp_df['연도'].isin(selected_years)]
     if selected_regions: temp_df = temp_df[temp_df['시군'].isin(selected_regions)]
+    if selected_genders: temp_df = temp_df[temp_df['성별'].isin(selected_genders)]
     filtered_schools = sorted(temp_df['순수학교명'].astype(str).unique().tolist())
 
-    with filter_col3:
-        selected_schools = st.multiselect("🏫 학교명", options=filtered_schools, placeholder="모든 학교 (비워두면 전체)")
+    with filter_col4:
+        selected_schools = st.multiselect("🏫 학교명", options=filtered_schools, placeholder="모든 학교")
 
     st.markdown("---")
-    render_dashboard(raw_df, valid_cols, selected_years, selected_regions, selected_schools)
+    render_dashboard(raw_df, valid_cols, selected_years, selected_regions, selected_schools, selected_genders)
