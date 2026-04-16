@@ -49,7 +49,7 @@ st.markdown(
         color: var(--text);
     }
 
-    #MainMenu, header, footer, [data-testid="stSidebar"] {
+    #MainMenu, header, footer {
         display: none;
     }
 
@@ -57,6 +57,21 @@ st.markdown(
         max-width: 1480px;
         padding-top: 1.4rem;
         padding-bottom: 3rem;
+    }
+
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #10253d 0%, #173756 100%);
+        border-right: 1px solid rgba(255,255,255,0.08);
+    }
+
+    [data-testid="stSidebar"] * {
+        color: #f7fbff !important;
+    }
+
+    [data-testid="stSidebar"] .stMultiSelect div[data-baseweb="select"] > div,
+    [data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"] > div {
+        background: rgba(255,255,255,0.08) !important;
+        border: 1px solid rgba(255,255,255,0.10) !important;
     }
 
     div[data-testid="stTabs"] button {
@@ -196,6 +211,24 @@ st.markdown(
         line-height: 1.75;
     }
 
+    .hero-subtitle {
+        margin-top: 10px;
+        font-size: 18px;
+        font-weight: 600;
+        color: rgba(255,255,255,0.9);
+    }
+
+    .hero-notice {
+        margin-top: 18px;
+        padding: 16px 18px;
+        border-radius: 18px;
+        background: rgba(255,255,255,0.10);
+        border: 1px solid rgba(255,255,255,0.14);
+        color: rgba(255,255,255,0.94);
+        font-size: 14px;
+        line-height: 1.7;
+    }
+
     .hero-highlight {
         margin-top: 18px;
         display: grid;
@@ -304,22 +337,6 @@ st.markdown(
         font-size: 13px;
         line-height: 1.65;
         margin-top: 10px;
-    }
-
-    .filter-chip-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-top: 12px;
-    }
-
-    .filter-chip {
-        padding: 9px 13px;
-        border-radius: 999px;
-        background: #eef4ff;
-        color: #2858b8;
-        font-size: 12px;
-        font-weight: 700;
     }
 
     .note-card {
@@ -544,6 +561,11 @@ def format_selection(values):
 
 raw_df, meta, load_error = load_raw_data()
 
+if load_error:
+    st.error(load_error)
+    st.info("`data/PAPS_Combined_Data.xlsx` 파일을 추가한 뒤 다시 실행해 주세요.")
+    st.stop()
+
 st.markdown(
     """
     <div class="topbar">
@@ -560,6 +582,26 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+with st.sidebar:
+    st.markdown("## 데이터 필터")
+    st.caption("선택한 조건을 기준으로 차트와 리포트가 다시 계산됩니다.")
+
+    s_year = st.multiselect("연도", sorted(raw_df["연도"].dropna().unique()))
+    s_region = st.multiselect("시·군", sorted(raw_df["시군"].dropna().unique()))
+    s_grade = st.multiselect("학년", sorted(raw_df["학년"].dropna().unique()))
+    s_gender = st.multiselect("성별", sorted(raw_df["성별"].dropna().unique()))
+
+    school_base_df = apply_filters(raw_df, s_year, s_region, s_grade, s_gender, [])
+    school_options = sorted(school_base_df["순수학교명"].dropna().unique())
+    s_school = st.multiselect("학교", school_options)
+
+    st.markdown("---")
+    st.markdown("## 분석 설정")
+    metric_options = list(meta["valid"].keys())
+    x_ax = st.selectbox("수평축", metric_options, index=0)
+    y_ax = st.selectbox("수직축", metric_options, index=1 if len(metric_options) > 1 else 0)
+    n_cl = st.slider("군집 수", 2, 4, 3)
+
 st.markdown(
     """
     <div class="hero">
@@ -567,11 +609,12 @@ st.markdown(
             <div>
                 <div class="eyebrow">PAPS CARE+ ANALYTICS</div>
                 <div class="brand-mark">PAPS CARE+ 맞춤형 체력 관리 시스템</div>
-                <h2>PAPS CARE+<br>학교 체력 데이터를 한눈에 읽는 전문 분석 대시보드</h2>
-                <p>
+                <h2>PAPS CARE+</h2>
+                <div class="hero-subtitle">강원특별자치도 학교 데이터 AI 분석 시스템</div>
+                <div class="hero-notice">* 본 시스템은 <b>학교알리미</b> 공시 데이터를 기반으로 학생들의 건강체력평가(PAPS)를 AI로 분석한 결과를 제공합니다.</div>
+                <p style="margin-top:18px;">
                     학교별 체력 현황을 단순 나열이 아니라 분석 가능한 정보로 전환합니다.
-                    연도, 지역, 학년, 성별, 학교 조건에 따라 AI 군집을 다시 계산하고,
-                    위험군 비중과 맞춤형 처방 방향을 보고서처럼 정리해 제공합니다.
+                    위험군 비중, 집단별 분포, 맞춤형 처방 방향을 한 화면에서 보고서처럼 확인할 수 있습니다.
                 </p>
                 <div class="hero-highlight">
                     <div class="hero-stat">
@@ -603,56 +646,13 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-if load_error:
-    st.error(load_error)
-    st.info("`data/PAPS_Combined_Data.xlsx` 파일을 추가한 뒤 다시 실행해 주세요.")
-    st.stop()
-
-
-with st.container():
-    st.markdown('<div class="shell shell-dark">', unsafe_allow_html=True)
-    st.markdown('<h3 class="panel-title">분석 설정 패널</h3>', unsafe_allow_html=True)
-    st.markdown(
-        '<p class="panel-copy">조건을 선택하면 아래 모든 차트와 리포트가 같은 기준으로 다시 계산됩니다.</p>',
-        unsafe_allow_html=True,
-    )
-
-    row1 = st.columns(5)
-    with row1[0]:
-        s_year = st.multiselect("연도", sorted(raw_df["연도"].dropna().unique()))
-    with row1[1]:
-        s_region = st.multiselect("시·군", sorted(raw_df["시군"].dropna().unique()))
-    with row1[2]:
-        s_grade = st.multiselect("학년", sorted(raw_df["학년"].dropna().unique()))
-    with row1[3]:
-        s_gender = st.multiselect("성별", sorted(raw_df["성별"].dropna().unique()))
-    with row1[4]:
-        school_base_df = apply_filters(raw_df, s_year, s_region, s_grade, s_gender, [])
-        school_options = sorted(school_base_df["순수학교명"].dropna().unique())
-        s_school = st.multiselect("학교", school_options)
-
-    row2 = st.columns([1.2, 1.2, 0.8])
-    metric_options = list(meta["valid"].keys())
-    with row2[0]:
-        x_ax = st.selectbox("수평축", metric_options, index=0)
-    with row2[1]:
-        y_ax = st.selectbox("수직축", metric_options, index=1 if len(metric_options) > 1 else 0)
-    with row2[2]:
-        n_cl = st.slider("군집 수", 2, 4, 3)
-
-    st.markdown(
-        f"""
-        <div class="filter-chip-row">
-            <div class="filter-chip">연도: {format_selection(s_year)}</div>
-            <div class="filter-chip">지역: {format_selection(s_region)}</div>
-            <div class="filter-chip">학년: {format_selection(s_grade)}</div>
-            <div class="filter-chip">성별: {format_selection(s_gender)}</div>
-            <div class="filter-chip">학교: {format_selection(s_school)}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
+st.markdown('<div class="shell shell-dark">', unsafe_allow_html=True)
+st.markdown('<h3 class="panel-title">현재 분석 기준</h3>', unsafe_allow_html=True)
+st.markdown(
+    f'<p class="panel-copy">연도 {format_selection(s_year)} · 지역 {format_selection(s_region)} · 학년 {format_selection(s_grade)} · 성별 {format_selection(s_gender)} · 학교 {format_selection(s_school)}</p>',
+    unsafe_allow_html=True,
+)
+st.markdown("</div>", unsafe_allow_html=True)
 
 filtered_df = apply_filters(raw_df, s_year, s_region, s_grade, s_gender, s_school)
 if filtered_df.empty:
