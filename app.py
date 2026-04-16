@@ -169,28 +169,32 @@ def render_dashboard(tab_df, valid_cols, filters):
         fig.update_layout(height=550, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
         st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("---")
+st.markdown("---")
     st.write("### 📋 맞춤형 처방 프로그램 및 운동 방향")
-
+    
     sum_df = plot_df.groupby('유형')[[x_axis, y_axis]].mean().round(1)
     counts = plot_df['유형'].value_counts()
-
+    
+    # 💡 그룹(유형) 개수만큼 세로 단(Column)을 생성하여 수치와 처방을 위아래로 한 묶음으로 배치합니다.
     met_cols = st.columns(len(sum_df))
+    
     for i, (idx, row) in enumerate(sum_df.iterrows()):
         with met_cols[i]:
+            # 1. 상단: 해당 그룹의 이름(예: 고위험군), 데이터 건수, 평균치 표시
             st.metric(label=idx, value=f"{counts.get(idx, 0)}건", delta=f"{x_axis} 평균: {row[x_axis]}", delta_color="off")
+            
+            # 2. 하단: 바로 아래에 맞춤형 처방 박스 표시 (제목 중복 방지를 위해 #### {idx} 제거)
             if "🔴" in idx:
-                st.error(f"**🏃‍♂️ 운동 방향:** 저강도 유산소 위주 구성\n\n**💊 처방:** 건강체력교실 우선 배정")
+                st.error("**🏃‍♂️ 운동 방향:** 저강도 유산소 위주 구성\n\n**💊 처방:** 건강체력교실 우선 배정 및 상담 병행")
             elif "🟠" in idx:
-                st.warning(f"**🏃‍♂️ 운동 방향:** 뉴스포츠 등 흥미 위주 활동\n\n**💊 처방:** 방과 후 스포츠클럽 참여 권장")
+                st.warning("**🏃‍♂️ 운동 방향:** 뉴스포츠 등 신체 활동량 증대\n\n**💊 처방:** 교내 걷기 챌린지 및 스포츠클럽 참여 권장")
             elif "🟢" in idx:
-                st.success(f"**🏃‍♂️ 운동 방향:** 전신 근력 및 유연성 밸런스\n\n**💊 처방:** 정규 체육 수업 충실 및 습관화")
+                st.success("**🏃‍♂️ 운동 방향:** 전신 밸런스 운동 권장\n\n**💊 처방:** 일상적 신체활동 습관화 지속")
             elif "🔵" in idx:
-                st.info(f"**🏃‍♂️ 운동 방향:** 고강도 심화 트레이닝\n\n**💊 처방:** 학생 스포츠 리더 및 멘토 위촉")
+                st.info("**🏃‍♂️ 운동 방향:** 고강도 심화 트레이닝 및 기술 습득\n\n**💊 처방:** 스포츠 리더 선발 및 엘리트 체육 연계")
 
     with st.expander("🔍 상세 데이터 테이블 보기"):
         st.dataframe(plot_df.drop(columns=['순수학교명', '연도', '시군'], errors='ignore').sort_values(['유형', '학교(연도)']), use_container_width=True)
-
 # ─── 5. 메인 실행 로직 ─────────────────────────────────────────────────────────────
 raw_df, meta = load_raw_data()
 if raw_df is not None:
