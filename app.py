@@ -5,17 +5,37 @@ import plotly.express as px
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
-# ─── 1. 웹페이지 설정 및 스타일링 ────────────────────────────────────────────────
+# ─── 1. 웹페이지 설정 및 Custom CSS ──────────────────────────────────────────
 st.set_page_config(page_title="PAPS Care+ Dashboard", layout="wide", initial_sidebar_state="expanded")
 
+# 💡 [핵심] 전문 사이트처럼 보이게 하는 마법의 CSS
+# 햄버거 메뉴, 푸터 숨김 / 전체 화면 여백 최적화
+st.markdown("""
+<style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        padding-left: 3rem;
+        padding-right: 3rem;
+    }
+    .stSelectbox label, .stMultiSelect label, .stSlider label {
+        font-weight: 600 !important;
+        color: #2c3e50;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# 메인 타이틀
 st.markdown(
-    "<h1 style='margin-top: -20px;'>📊 <b>PAPS CARE+</b> <span style='font-size:0.55em; color:#666; font-weight:normal;'>| 강원특별자치도 학교 데이터 AI 분석 시스템</span></h1>", 
+    "<h1 style='color: #1E3A8A; letter-spacing: -1px;'>📊 <b>PAPS CARE+</b> <span style='font-size:0.55em; color:#7f8c8d; font-weight:normal;'>| 강원특별자치도 학생 건강 데이터 분석 시스템</span></h1>", 
     unsafe_allow_html=True
 )
-
 st.markdown(
-    "<p style='color: #7f8c8d; font-size: 0.95em; margin-top: -15px; margin-bottom: 25px;'>"
-    "* 본 시스템은 <b>학교알리미</b> 공시 데이터를 기반으로 학생들의 건강체력평가(PAPS)를 AI로 분석한 결과를 제공합니다."
+    "<p style='color: #95a5a6; font-size: 0.95em; margin-top: -10px; margin-bottom: 30px;'>"
+    "본 시스템은 <b>학교알리미</b> 공시 데이터를 기반으로 학생들의 건강체력평가(PAPS)를 AI로 분석한 결과를 제공합니다."
     "</p>", 
     unsafe_allow_html=True
 )
@@ -119,15 +139,19 @@ def render_dashboard(tab_df, valid_cols, filters):
     if filters['gender']: tab_df = tab_df[tab_df['성별'].isin(filters['gender'])]
     if filters['grade']: tab_df = tab_df[tab_df['학년'].isin(filters['grade'])]
     
-    col_set1, col_set2 = st.columns([1, 3])
     metrics = list(valid_cols.keys())
 
-    with col_set1:
-        st.write("### ⚙️ 분석 지표")
-        x_axis = st.selectbox("X축 (주로 BMI)", metrics, index=0)
-        y_axis = st.selectbox("Y축 (주로 체력지표)", metrics, index=min(1, len(metrics)-1))
-        n_clusters = st.slider("군집 세분화 (개)", 2, 4, 3)
-        is_mobile = st.toggle("📱 모바일 최적화")
+    # 💡 [핵심] 차트 상단에 분석 설정 패널을 얇은 카드로 깔끔하게 배치
+    with st.container():
+        c1, c2, c3, c4 = st.columns([2, 2, 2, 1])
+        with c1: x_axis = st.selectbox("수평축 (X-Axis)", metrics, index=0)
+        with c2: y_axis = st.selectbox("수직축 (Y-Axis)", metrics, index=min(1, len(metrics)-1))
+        with c3: n_clusters = st.slider("AI 군집 세분화", 2, 4, 3)
+        with c4: 
+            st.write("") # 수직 정렬용 여백
+            is_mobile = st.toggle("모바일 모드")
+            
+    st.markdown("<hr style='margin-top: 10px; margin-bottom: 20px;'>", unsafe_allow_html=True)
         
     plot_df = get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters)
 
@@ -143,55 +167,59 @@ def render_dashboard(tab_df, valid_cols, filters):
         st.info("💡 선택하신 필터 조건에 맞는 데이터가 없습니다.")
         return
 
-    with col_set2:
-        color_map = {
-            "🔴 고위험군": "#EF5350", "🔴 관리 필요군": "#EF5350", "🟠 중점 관리군": "#FFB74D", 
-            "🟢 일반군": "#66BB6A", "🔵 건강 우수군": "#42A5F5", "🔵 건강 양호군": "#42A5F5"
-        }
-        fig = px.scatter(
-            plot_df, x=x_axis, y=y_axis, color='유형', text='학교(연도)',
-            hover_name='학교(연도)', color_discrete_map=color_map,
-            title=f"🏫 통합 건강 데이터 AI 분석 결과"
-        )
-        fig.update_traces(textposition='top center', marker=dict(size=12 if is_mobile else 22, line=dict(width=2, color='white')))
-        fig.update_layout(height=550, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
-        st.plotly_chart(fig, use_container_width=True)
+    # 차트 디자인 세련화 (투명 배경, 격자선 처리)
+    color_map = {
+        "🔴 고위험군": "#EF5350", "🔴 관리 필요군": "#EF5350", "🟠 중점 관리군": "#FFB74D", 
+        "🟢 일반군": "#66BB6A", "🔵 건강 우수군": "#42A5F5", "🔵 건강 양호군": "#42A5F5"
+    }
+    fig = px.scatter(
+        plot_df, x=x_axis, y=y_axis, color='유형', text='학교(연도)',
+        hover_name='학교(연도)', color_discrete_map=color_map
+    )
+    fig.update_traces(textposition='top center', marker=dict(size=12 if is_mobile else 18, line=dict(width=1.5, color='white')))
+    fig.update_layout(
+        height=550, 
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, title=None),
+        plot_bgcolor='rgba(248, 249, 250, 0.5)', # 아주 옅은 회색 투명 배경
+        paper_bgcolor='rgba(0,0,0,0)',
+        xaxis=dict(showgrid=True, gridcolor='rgba(200,200,200,0.3)', zeroline=False),
+        yaxis=dict(showgrid=True, gridcolor='rgba(200,200,200,0.3)', zeroline=False),
+        margin=dict(t=30, b=10, l=10, r=10)
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
-    # 💡 [핵심 해결] 브라우저 창 크기가 작아져도 깨지지 않는 완전 고정형 HTML 표 삽입
-    st.markdown("---")
+    st.markdown("<br>", unsafe_allow_html=True)
     st.write("### 📋 그룹별 맞춤형 운동 처방 및 교육 프로그램")
 
     sum_df = plot_df.groupby('유형')[[x_axis, y_axis]].mean().round(1)
     counts = plot_df['유형'].value_counts()
 
-    # CSS 스타일을 적용한 테이블 뼈대 생성
+    # 테이블 디자인 코드 (이전과 동일)
     html_table = '''
     <style>
-    .presc-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-family: 'Malgun Gothic', sans-serif; }
-    .presc-table th { background-color: #f8f9fa; padding: 15px; text-align: left; font-size: 16px; border-bottom: 2px solid #dee2e6; color: #333; }
-    .presc-table td { padding: 15px; border-bottom: 1px solid #dee2e6; vertical-align: top; font-size: 14px; line-height: 1.6; color: #444; }
-    .t-title { font-weight: bold; margin-bottom: 10px; display: inline-block; font-size: 15px; }
-    .t-red { color: #c62828; background: #ffebee; padding: 5px 10px; border-radius: 5px; }
-    .t-orange { color: #ef6c00; background: #fff3e0; padding: 5px 10px; border-radius: 5px; }
-    .t-green { color: #2e7d32; background: #e8f5e9; padding: 5px 10px; border-radius: 5px; }
-    .t-blue { color: #1565c0; background: #e3f2fd; padding: 5px 10px; border-radius: 5px; }
-    .t-ul { margin-top: 5px; margin-bottom: 0; padding-left: 20px; }
-    .t-ul li { margin-bottom: 6px; }
+    .presc-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-family: 'Malgun Gothic', sans-serif; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden;}
+    .presc-table th { background-color: #f1f3f5; padding: 16px; text-align: left; font-size: 15px; border-bottom: 2px solid #dee2e6; color: #2c3e50; }
+    .presc-table td { padding: 18px 16px; border-bottom: 1px solid #e9ecef; vertical-align: top; font-size: 14.5px; line-height: 1.6; color: #34495e; background-color: #ffffff;}
+    .t-title { font-weight: bold; margin-bottom: 12px; display: inline-block; font-size: 15px; }
+    .t-red { color: #c62828; background: #ffebee; padding: 6px 12px; border-radius: 6px; }
+    .t-orange { color: #e65100; background: #fff3e0; padding: 6px 12px; border-radius: 6px; }
+    .t-green { color: #1b5e20; background: #e8f5e9; padding: 6px 12px; border-radius: 6px; }
+    .t-blue { color: #0d47a1; background: #e3f2fd; padding: 6px 12px; border-radius: 6px; }
+    .t-ul { margin-top: 5px; margin-bottom: 0; padding-left: 22px; }
+    .t-ul li { margin-bottom: 8px; }
     </style>
     <table class="presc-table">
         <tr>
-            <th style="width: 20%;">📊 분석 집단군</th>
-            <th style="width: 40%;">🏃‍♂️ 맞춤형 운동 처방</th>
-            <th style="width: 40%;">💊 교육 프로그램 추천</th>
+            <th style="width: 22%;">📊 분석 집단군</th>
+            <th style="width: 39%;">🏃‍♂️ 맞춤형 운동 처방</th>
+            <th style="width: 39%;">💊 교육 프로그램 추천</th>
         </tr>
     '''
 
-    # 각 그룹별로 행(Row) 생성
     for idx in sum_df.index:
         count_val = counts.get(idx, 0)
         mean_val = sum_df.loc[idx, x_axis]
         
-        # 색상 및 내용 매핑
         if "🔴" in idx:
             badge = "t-red"
             ex_title = "저강도 유산소 위주 구성"
@@ -219,21 +247,20 @@ def render_dashboard(tab_df, valid_cols, filters):
         else:
             continue
 
-        # HTML 행(Row) 추가
         row_html = f'''
         <tr>
             <td>
                 <div class="t-title {badge}">{idx}</div>
-                <div style="margin-top: 10px; font-size: 13.5px; color: #555;">
-                    <b>{count_val}개 데이터</b><br>{x_axis} 평균: {mean_val}
+                <div style="margin-top: 10px; font-size: 14px; color: #555;">
+                    <b style="color: #2c3e50;">{count_val}개 데이터</b><br>{x_axis} 평균: {mean_val}
                 </div>
             </td>
             <td>
-                <div class="t-title">[{ex_title}]</div>
+                <div class="t-title" style="color: #495057;">[{ex_title}]</div>
                 <ul class="t-ul">{ex_list}</ul>
             </td>
             <td>
-                <div class="t-title">[{ed_title}]</div>
+                <div class="t-title" style="color: #495057;">[{ed_title}]</div>
                 <ul class="t-ul">{ed_list}</ul>
             </td>
         </tr>
@@ -241,39 +268,41 @@ def render_dashboard(tab_df, valid_cols, filters):
         html_table += row_html
 
     html_table += "</table>"
-    
-    # 생성된 완전 고정형 표 출력
     st.markdown(html_table, unsafe_allow_html=True)
 
     with st.expander("🔍 상세 데이터 테이블 보기"):
         st.dataframe(plot_df.drop(columns=['순수학교명', '연도', '시군'], errors='ignore').sort_values(['유형', '학교(연도)']), use_container_width=True)
 
-# ─── 5. 메인 실행 로직 ─────────────────────────────────────────────────────────────
+# ─── 5. 메인 실행 로직 (사이드바 적용) ──────────────────────────────────────────
 raw_df, meta = load_raw_data()
 if raw_df is not None:
-    st.markdown("### 📍 분석 데이터 필터링")
     
-    years = sorted([y for y in raw_df['연도'].unique() if y > 0])
-    sigungus = sorted(raw_df['시군'].unique())
-    grades = sorted([g for g in raw_df['학년'].unique() if '전체' not in g])
-    genders = sorted([g for g in raw_df['성별'].unique() if '전체' not in g])
+    # 💡 [핵심] 조잡해 보였던 상단 필터들을 전부 왼쪽 사이드바로 격리
+    with st.sidebar:
+        st.markdown("## 🔍 데이터 필터링")
+        st.markdown("원하는 조건을 선택하여 데이터를<br>세밀하게 탐색해보세요.", unsafe_allow_html=True)
+        st.markdown("<hr style='margin-top: 10px; margin-bottom: 20px;'>", unsafe_allow_html=True)
+        
+        years = sorted([y for y in raw_df['연도'].unique() if y > 0])
+        sigungus = sorted(raw_df['시군'].unique())
+        grades = sorted([g for g in raw_df['학년'].unique() if '전체' not in g])
+        genders = sorted([g for g in raw_df['성별'].unique() if '전체' not in g])
 
-    f1, f2, f3, f4, f5 = st.columns(5)
-    with f1: s_year = st.multiselect("📅 연도", options=years, placeholder="전체")
-    with f2: s_region = st.multiselect("📍 시·군", options=sigungus, placeholder="전체")
-    with f3: s_grade = st.multiselect("🎓 학년", options=grades, placeholder="전체")
-    with f4: s_gender = st.multiselect("👫 성별", options=genders, placeholder="남/여 전체")
-    
-    tmp = raw_df.copy()
-    if s_year: tmp = tmp[tmp['연도'].isin(s_year)]
-    if s_region: tmp = tmp[tmp['시군'].isin(s_region)]
-    if s_grade: tmp = tmp[tmp['학년'].isin(s_grade)]
-    if s_gender: tmp = tmp[tmp['성별'].isin(s_gender)]
-    f_schools = sorted(tmp['순수학교명'].unique())
-    
-    with f5: s_school = st.multiselect("🏫 학교명", options=f_schools, placeholder="전체")
+        s_year = st.multiselect("📅 연도", options=years, placeholder="전체 연도")
+        s_region = st.multiselect("📍 시·군", options=sigungus, placeholder="전체 지역")
+        s_grade = st.multiselect("🎓 학년", options=grades, placeholder="전체 학년")
+        s_gender = st.multiselect("👫 성별", options=genders, placeholder="남/여 전체")
+        
+        tmp = raw_df.copy()
+        if s_year: tmp = tmp[tmp['연도'].isin(s_year)]
+        if s_region: tmp = tmp[tmp['시군'].isin(s_region)]
+        if s_grade: tmp = tmp[tmp['학년'].isin(s_grade)]
+        if s_gender: tmp = tmp[tmp['성별'].isin(s_gender)]
+        f_schools = sorted(tmp['순수학교명'].unique())
+        
+        st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
+        s_school = st.multiselect("🏫 특정 학교명 검색", options=f_schools, placeholder="전체 학교")
 
     filters = {'year': s_year, 'region': s_region, 'grade': s_grade, 'gender': s_gender, 'school': s_school}
 
-    # 필터가 적용된 통합 리포트 렌더링
     render_dashboard(raw_df, meta['valid_cols'], filters)
