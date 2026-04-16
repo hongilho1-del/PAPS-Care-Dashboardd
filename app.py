@@ -179,32 +179,36 @@ def render_dashboard(tab_df, valid_cols, filters):
         st.plotly_chart(fig, use_container_width=True)
 
     # 처방 카드 및 상세 테이블 (기존 로직 유지)
+ # -----------------------------------------------------
+    # 이 부분부터 교체하시면 됩니다!
+    # -----------------------------------------------------
     st.markdown("---")
     st.write("### 📋 맞춤형 처방 프로그램 및 운동 방향")
+    
     sum_df = plot_df.groupby('유형')[[x_axis, y_axis]].mean().round(1)
     counts = plot_df['유형'].value_counts()
     
+    # 💡 그룹(유형) 개수만큼 세로 단(Column)을 생성하여 수치와 처방을 위아래로 한 묶음으로 배치합니다.
     met_cols = st.columns(len(sum_df))
+    
     for i, (idx, row) in enumerate(sum_df.iterrows()):
         with met_cols[i]:
-            st.metric(label=idx, value=f"{counts.get(idx, 0)}건", delta=f"{x_axis}: {row[x_axis]}", delta_color="off")
+            # 1. 상단: 해당 그룹의 이름(예: 고위험군), 데이터 건수, 평균치 표시
+            st.metric(label=idx, value=f"{counts.get(idx, 0)}건", delta=f"{x_axis} 평균: {row[x_axis]}", delta_color="off")
+            
+            # 2. 하단: 바로 아래에 맞춤형 처방 박스 표시 (제목 중복 방지를 위해 #### {idx} 제거)
+            if "🔴" in idx:
+                st.error("**🏃‍♂️ 운동 방향:** 저강도 유산소 위주 구성\n\n**💊 처방:** 건강체력교실 우선 배정 및 상담 병행")
+            elif "🟠" in idx:
+                st.warning("**🏃‍♂️ 운동 방향:** 뉴스포츠 등 신체 활동량 증대\n\n**💊 처방:** 교내 걷기 챌린지 및 스포츠클럽 참여 권장")
+            elif "🟢" in idx:
+                st.success("**🏃‍♂️ 운동 방향:** 전신 밸런스 운동 권장\n\n**💊 처방:** 일상적 신체활동 습관화 지속")
+            elif "🔵" in idx:
+                st.info("**🏃‍♂️ 운동 방향:** 고강도 심화 트레이닝 및 기술 습득\n\n**💊 처방:** 스포츠 리더 선발 및 엘리트 체육 연계")
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    card1, card2 = st.columns(2)
-    for idx in sum_df.index:
-        target = card1 if "🔴" in idx or "🟢" in idx else card2
-        if "🔴" in idx:
-            target.error(f"#### {idx}\n**🏃‍♂️ 운동 방향:** 저강도 유산소 위주 구성\n**💊 처방:** 건강체력교실 우선 배정 및 상담 병행")
-        elif "🟠" in idx:
-            target.warning(f"#### {idx}\n**🏃‍♂️ 운동 방향:** 뉴스포츠 등 신체 활동량 증대\n**💊 처방:** 교내 걷기 챌린지 및 스포츠클럽 참여 권장")
-        elif "🟢" in idx:
-            target.success(f"#### {idx}\n**🏃‍♂️ 운동 방향:** 전신 밸런스 운동 권장\n**💊 처방:** 일상적 신체활동 습관화 지속")
-        elif "🔵" in idx:
-            target.info(f"#### {idx}\n**🏃‍♂️ 운동 방향:** 고강도 트레이닝 및 전문 기술 습득\n**💊 처방:** 스포츠 리더 선발 및 엘리트 체육 연계")
-
-    with st.expander("🔍 상세 데이터 테이블"):
-        st.dataframe(plot_df.drop(columns=['순수학교명', '연도', '시군'], errors='ignore'), use_container_width=True)
-
+    with st.expander("🔍 상세 데이터 테이블 보기"):
+        st.dataframe(plot_df.drop(columns=['순수학교명', '연도', '시군'], errors='ignore').sort_values(['유형', '학교(연도)']), use_container_width=True)
+        
 # ─── 5. 실행 로직 ─────────────────────────────────────────────────────────────
 raw_df, meta = load_raw_data()
 if raw_df is not None:
