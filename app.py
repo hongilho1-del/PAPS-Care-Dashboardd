@@ -70,7 +70,6 @@ def load_raw_data():
 # ─── 3. 학교+연도별 집계 및 군집 명칭 자동 할당 ──────────────────────────────────
 def get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters):
     agg_dict = {v: 'mean' for v in valid_cols.values()}
-    # 💡 [핵심 수정] 연도와 시군 데이터를 유지하여 나중에 다중 필터링이 가능하도록 함
     agg_dict['연도'] = 'first'
     agg_dict['시군'] = 'first'
     
@@ -93,8 +92,16 @@ def get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters):
     cluster_means = df.groupby('Cluster')[sort_metric].mean().sort_values(ascending=False)
     
     rank_map = {cluster_idx: i for i, cluster_idx in enumerate(cluster_means.index)}
-    name_list = ["🔴 고위험군", "🟠 중점 관리군", "🟢 일반군", "🔵 건강 우수군", "⚪ 기타"]
-    df['유형'] = df['Cluster'].map(rank_map).apply(lambda x: name_list[min(x, 4)])
+    
+    # 💡 [핵심 반영] 선택된 군집 개수(n_clusters)에 따라 논리적으로 명칭을 다르게 부여합니다.
+    if n_clusters == 2:
+        name_list = ["🔴 관리 필요군", "🔵 건강 양호군"]
+    elif n_clusters == 3:
+        name_list = ["🔴 고위험군", "🟢 일반군", "🔵 건강 우수군"]
+    else: # n_clusters == 4
+        name_list = ["🔴 고위험군", "🟠 중점 관리군", "🟢 일반군", "🔵 건강 우수군"]
+        
+    df['유형'] = df['Cluster'].map(rank_map).apply(lambda x: name_list[x] if x < len(name_list) else "⚪ 기타")
     return df
 
 # ─── 4. 통합 렌더링 함수 (단일 뷰 구조) ───────────────────────────────────────────
@@ -106,10 +113,10 @@ def render_dashboard(tab_df, valid_cols, selected_years, selected_regions, selec
         st.write("### ⚙️ 분석 지표")
         x_axis = st.selectbox("X축 (주로 BMI)", metrics, index=0)
         y_axis = st.selectbox("Y축 (주로 체력지표)", metrics, index=min(1, len(metrics)-1))
+        # 군집 개수를 2개~4개로 조절할 수 있도록 설정
         n_clusters = st.slider("군집 세분화 (개)", 2, 4, 3)
         is_mobile = st.toggle("📱 모바일 최적화")
         
-    # AI 군집화는 무조건 전체 데이터를 기준으로 1차 수행 (상대적 위치 보존)
     plot_df = get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters)
 
     if plot_df.empty or len(plot_df) < n_clusters:
@@ -124,7 +131,7 @@ def render_dashboard(tab_df, valid_cols, selected_years, selected_regions, selec
     global_x_range = [x_min - x_margin, x_max + x_margin]
     global_y_range = [y_min - y_margin, y_max + y_margin]
 
-    # 💡 [핵심] 사용자가 선택한 다중 조건(연도, 시군, 학교) 필터링 적용
+    # 사용자가 선택한 다중 조건 필터링
     if selected_years: plot_df = plot_df[plot_df['연도'].isin(selected_years)]
     if selected_regions: plot_df = plot_df[plot_df['시군'].isin(selected_regions)]
     if selected_schools: plot_df = plot_df[plot_df['순수학교명'].isin(selected_schools)]
@@ -133,7 +140,6 @@ def render_dashboard(tab_df, valid_cols, selected_years, selected_regions, selec
         st.info("💡 선택하신 조건에 해당하는 데이터가 없습니다.")
         return
 
-    # 동적 제목 생성
     title_parts = []
     if selected_years: title_parts.append(f"{','.join(map(str, selected_years))}년")
     if selected_regions: title_parts.append(f"{','.join(selected_regions)}")
@@ -144,7 +150,13 @@ def render_dashboard(tab_df, valid_cols, selected_years, selected_regions, selec
     chart_height = 400 if is_mobile else 550
 
     with col_set2:
-        color_discrete_map = {"🔴 고위험군": "#EF5350", "🟠 중점 관리군": "#FFB74D", "🟢 일반군": "#66BB6A", "🔵 건강 우수군": "#42A5F5"}
+        # 💡 새롭게 추가된 명칭(2개일 때)도 색상이 적용되도록 맵핑에 추가
+        color_discrete_map = {
+            "🔴 고위험군": "#EF5350", "🔴 관리 필요군": "#EF5350",
+            "🟠 중점 관리군": "#FFB74D", 
+            "🟢 일반군": "#66BB6A", 
+            "🔵 건강 우수군": "#42A5F5", "🔵 건강 양호군": "#42A5F5"
+        }
         fig = px.scatter(
             plot_df, x=x_axis, y=y_axis, color='유형', 
             text='학교(연도)', hover_name='학교(연도)', 
@@ -174,6 +186,7 @@ def render_dashboard(tab_df, valid_cols, selected_years, selected_regions, selec
     
     for idx in sum_df.index:
         val_x = sum_df.loc[idx, x_axis]
+        # 💡 이모지를 기준으로 판별하므로 2, 3, 4개일 때 모두 정확하게 작동합니다.
         if "🔴" in idx:
             with card_col1:
                 st.error(f"#### {idx}\n**🔻 상태:** 비만도({x_axis} 평균 {val_x})가 상대적으로 높고, 기초 체력이 저조하여 집중 관리가 시급합니다.\n\n**🏃‍♂️ 운동 방향:** 관절에 무리가 없는 저강도 유산소 운동(수영, 자전거, 걷기) 위주의 세션 구성이 필요합니다.\n\n**💊 처방 프로그램:** '건강 체력 교실' 1순위 배정, 가정통신문 연계 영양 상담 병행.")
@@ -197,12 +210,10 @@ if raw_df is not None:
     
     st.markdown("### 🔎 다중 조건 데이터 검색 (동시 선택 가능)")
     
-    # 기초 선택지 마련
     years = sorted([y for y in raw_df['연도'].unique() if y > 0])
     sigungus = sorted(raw_df['시군'].astype(str).unique().tolist())
     if '강원' in sigungus: sigungus.remove('강원')
 
-    # 💡 가로로 3칸을 나누어 연도/지역/학교를 깔끔하게 배치합니다.
     filter_col1, filter_col2, filter_col3 = st.columns(3)
     
     with filter_col1:
@@ -211,7 +222,6 @@ if raw_df is not None:
     with filter_col2:
         selected_regions = st.multiselect("📍 시·군", options=sigungus, placeholder="모든 지역 (비워두면 전체)")
 
-    # 💡 사용자가 연도나 지역을 선택하면, 학교 목록도 해당 조건에 맞게 똑똑하게 줄어듭니다!
     temp_df = raw_df.copy()
     if selected_years: temp_df = temp_df[temp_df['연도'].isin(selected_years)]
     if selected_regions: temp_df = temp_df[temp_df['시군'].isin(selected_regions)]
@@ -221,6 +231,4 @@ if raw_df is not None:
         selected_schools = st.multiselect("🏫 학교명", options=filtered_schools, placeholder="모든 학교 (비워두면 전체)")
 
     st.markdown("---")
-    
-    # 탭 없이 단일 뷰로 즉시 렌더링
     render_dashboard(raw_df, valid_cols, selected_years, selected_regions, selected_schools)
