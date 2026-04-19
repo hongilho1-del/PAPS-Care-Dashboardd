@@ -337,7 +337,7 @@ else:
     if not meta["valid_cols"]:
         st.warning("체력 분석에 사용할 수치형 컬럼을 찾지 못했습니다. 엑셀 컬럼명을 확인해주세요.")
     else:
-        st.markdown("### 📍 분석 데이터 필터링")
+        st.markdown("### 📍 분석 데이터")
 
         years = sorted([y for y in raw_df["연도"].unique() if y > 0])
         sigungus = sorted(raw_df["시군"].dropna().astype(str).unique())
