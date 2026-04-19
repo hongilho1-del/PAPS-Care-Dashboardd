@@ -89,7 +89,6 @@ def load_raw_data():
             "error": f"데이터 파일을 찾지 못했습니다. 확인 폴더: {data_dir}"
         }
 
-    # 가장 최근 수정된 파일 자동 선택
     file_path = max(matched_files, key=os.path.getmtime)
 
     try:
@@ -335,9 +334,6 @@ raw_df, meta = load_raw_data()
 if raw_df is None:
     st.error(meta.get("error", "데이터를 불러오지 못했습니다."))
 else:
-    st.success(f"데이터 로드 완료: {os.path.basename(meta['file_path'])}")
-    st.caption(f"불러온 경로: {meta['file_path']}")
-
     if not meta["valid_cols"]:
         st.warning("체력 분석에 사용할 수치형 컬럼을 찾지 못했습니다. 엑셀 컬럼명을 확인해주세요.")
     else:
