@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+import glob
 import plotly.express as px
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
@@ -25,94 +26,163 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# ─── 2. 데이터 로드 및 전처리 ──────────────────────────────────────────────────
+# ─── 2. 공통 유틸 ───────────────────────────────────────────────────────────────
+def normalize_text_series(series, default="전체"):
+    s = series.astype(str).str.strip()
+    s = s.replace({"": default, "nan": default, "None": default})
+    return s.fillna(default)
+
+def normalize_grade_value(v):
+    if pd.isna(v):
+        return "전체"
+    v = str(v).strip()
+    if v in ["", "nan", "None"]:
+        return "전체"
+    v = v.replace("학년", "").strip()
+    return f"{v}학년" if v else "전체"
+
+def infer_school_level(name):
+    if pd.isna(name):
+        return "전체"
+    name = str(name).strip()
+    if name.endswith("중"):
+        return "중"
+    if name.endswith("고"):
+        return "고"
+    return "전체"
+
+def apply_filters(df, filters):
+    result = df.copy()
+
+    if filters.get("year"):
+        result = result[result["연도"].isin(filters["year"])]
+    if filters.get("region"):
+        result = result[result["시군"].isin(filters["region"])]
+    if filters.get("school_level"):
+        result = result[result["학교급"].isin(filters["school_level"])]
+    if filters.get("grade"):
+        result = result[result["학년"].isin(filters["grade"])]
+    if filters.get("gender"):
+        result = result[result["성별"].isin(filters["gender"])]
+    if filters.get("school"):
+        result = result[result["순수학교명"].isin(filters["school"])]
+
+    return result
+
+# ─── 3. 데이터 로드 및 전처리 ──────────────────────────────────────────────────
 @st.cache_data
 def load_raw_data():
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(base_dir, 'data', 'PAPS_Combined_Data.xlsx')
+    data_dir = os.path.join(base_dir, "data")
 
-    if not os.path.exists(file_path):
-        return None, {}
+    patterns = [
+        os.path.join(data_dir, "PAPS_Final_Master*.xlsx"),
+        os.path.join(data_dir, "PAPS_Combined_Data*.xlsx"),
+    ]
+
+    matched_files = []
+    for pattern in patterns:
+        matched_files.extend(glob.glob(pattern))
+
+    if not matched_files:
+        return None, {
+            "error": f"데이터 파일을 찾지 못했습니다. 확인 폴더: {data_dir}"
+        }
+
+    # 가장 최근 수정된 파일 자동 선택
+    file_path = max(matched_files, key=os.path.getmtime)
 
     try:
         df = pd.read_excel(file_path)
-        df.columns = df.columns.str.strip()
+        df.columns = df.columns.map(str).str.strip()
 
         def find_col(keywords):
             for c in df.columns:
+                c_str = str(c)
                 for kw in keywords:
-                    if kw in str(c):
+                    if kw in c_str:
                         return c
             return None
 
         target_mapping = {
-            'BMI': find_col(['BMI', '비만', '체질량']),
-            '심폐지구력 (왕복오래달리기)': find_col(['왕복', '오래달리기', '심폐']),
-            '근력 (악력)': find_col(['악력']),
-            '근력 (팔굽혀/말아올리기)': find_col(['팔굽혀', '말아올리기']),
-            '유연성 (앉아윗몸)': find_col(['앉아윗몸', '유연성']),
-            '순발력 (제자리멀리뛰기)': find_col(['제자리멀리', '순발력'])
+            "BMI": find_col(["BMI", "비만", "체질량"]),
+            "심폐지구력 (왕복오래달리기)": find_col(["왕복", "오래달리기", "심폐"]),
+            "근력 (악력)": find_col(["악력"]),
+            "근력 (팔굽혀/말아올리기)": find_col(["팔굽혀", "말아올리기", "윗몸말아올리기"]),
+            "유연성 (앉아윗몸)": find_col(["앉아윗몸", "유연성"]),
+            "순발력 (제자리멀리뛰기)": find_col(["제자리멀리", "멀리뛰기", "순발력"]),
         }
-        valid_cols = {k: v for k, v in target_mapping.items() if v}
+        valid_cols = {k: v for k, v in target_mapping.items() if v is not None}
 
         for col in valid_cols.values():
             df[col] = pd.to_numeric(
-                df[col].astype(str).str.replace(r'[^0-9.]', '', regex=True),
-                errors='coerce'
+                df[col].astype(str).str.replace(r"[^0-9.\-]", "", regex=True),
+                errors="coerce"
             )
 
-        school_col = '추출학교명' if '추출학교명' in df.columns else df.columns[0]
-        df['순수학교명'] = df[school_col].astype(str).str.strip()
-
-        if '연도' in df.columns:
-            df['연도'] = pd.to_numeric(df['연도'], errors='coerce').fillna(0).astype(int)
+        if "순수학교명" in df.columns:
+            school_col = "순수학교명"
+        elif "추출학교명" in df.columns:
+            school_col = "추출학교명"
         else:
-            df['연도'] = df[school_col].astype(str).str.extract(r'(20\d{2}|19\d{2})')[0]
-            df['연도'] = pd.to_numeric(df['연도'], errors='coerce').fillna(0).astype(int)
+            school_col = df.columns[0]
 
-        df['표시용이름'] = df.apply(
-            lambda row: f"{row['순수학교명']} ({row['연도']})" if row['연도'] > 0 else row['순수학교명'],
+        df["순수학교명"] = normalize_text_series(df[school_col], default="학교명미상")
+
+        if "연도" in df.columns:
+            df["연도"] = pd.to_numeric(df["연도"], errors="coerce").fillna(0).astype(int)
+        else:
+            extracted_year = df[school_col].astype(str).str.extract(r"(20\d{2}|19\d{2})")[0]
+            df["연도"] = pd.to_numeric(extracted_year, errors="coerce").fillna(0).astype(int)
+
+        if "시군" in df.columns:
+            df["시군"] = normalize_text_series(df["시군"], default="강원")
+        else:
+            df["시군"] = "강원"
+
+        if "학교급" in df.columns:
+            df["학교급"] = normalize_text_series(df["학교급"], default="전체")
+        else:
+            df["학교급"] = df["순수학교명"].apply(infer_school_level)
+
+        gender_col = find_col(["성별", "남여", "구분_성별"])
+        if gender_col:
+            df["성별"] = normalize_text_series(df[gender_col], default="전체")
+        else:
+            df["성별"] = "전체"
+
+        grade_col = find_col(["학년", "구분_학년"])
+        if grade_col:
+            df["학년"] = df[grade_col].apply(normalize_grade_value)
+        else:
+            df["학년"] = "전체"
+
+        df["표시용이름"] = df.apply(
+            lambda row: f"{row['순수학교명']} ({row['연도']})" if row["연도"] > 0 else row["순수학교명"],
             axis=1
         )
 
-        df['시군'] = df['시군'].astype(str).str.strip() if '시군' in df.columns else '강원'
-
-        if '학교급' in df.columns:
-            df['학교급'] = df['학교급'].astype(str).str.strip()
-        else:
-            df['학교급'] = '전체'
-
-        gender_col = find_col(['성별', '남여', '구분_성별'])
-        df['성별'] = df[gender_col].astype(str).str.strip() if gender_col else '전체'
-
-        grade_col = find_col(['학년', '구분_학년'])
-        if grade_col:
-            df['학년'] = (
-                df[grade_col]
-                .astype(str)
-                .str.replace('학년', '', regex=False)
-                .str.strip() + '학년'
-            )
-        else:
-            df['학년'] = '전체'
-
-        return df, {'school_col': school_col, 'valid_cols': valid_cols}
+        return df, {
+            "school_col": school_col,
+            "valid_cols": valid_cols,
+            "file_path": file_path,
+            "matched_files": matched_files,
+        }
 
     except Exception as e:
-        st.error(f"데이터 로드 중 오류 발생: {e}")
-        return None, {}
+        return None, {"error": f"데이터 로드 중 오류 발생: {e}"}
 
-# ─── 3. AI 군집 분석 함수 ──────────────────────────────────────────
+# ─── 4. AI 군집 분석 함수 ─────────────────────────────────────────────────────
 def get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters):
     raw_x = valid_cols[x_axis]
     raw_y = valid_cols[y_axis]
 
-    agg_dict = {v: 'mean' for v in valid_cols.values()}
-    agg_dict['연도'] = 'first'
-    agg_dict['시군'] = 'first'
-    agg_dict['학교급'] = 'first'
+    agg_dict = {v: "mean" for v in valid_cols.values()}
+    agg_dict["연도"] = "first"
+    agg_dict["시군"] = "first"
+    agg_dict["학교급"] = "first"
 
-    df_agg = tab_df.groupby(['순수학교명', '표시용이름']).agg(agg_dict).reset_index()
+    df_agg = tab_df.groupby(["순수학교명", "표시용이름"]).agg(agg_dict).reset_index()
 
     X = df_agg[[raw_x, raw_y]].dropna()
     if len(X) < n_clusters:
@@ -120,10 +190,10 @@ def get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters):
 
     X_scaled = StandardScaler().fit_transform(X)
     kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
-    df_agg.loc[X.index, 'Cluster'] = kmeans.fit_predict(X_scaled)
-    df_agg = df_agg.dropna(subset=['Cluster'])
+    df_agg.loc[X.index, "Cluster"] = kmeans.fit_predict(X_scaled)
+    df_agg = df_agg.dropna(subset=["Cluster"])
 
-    cluster_means = df_agg.groupby('Cluster')[raw_x].mean().sort_values(ascending=False)
+    cluster_means = df_agg.groupby("Cluster")[raw_x].mean().sort_values(ascending=False)
     rank_map = {cluster_idx: i for i, cluster_idx in enumerate(cluster_means.index)}
 
     if n_clusters == 2:
@@ -133,23 +203,26 @@ def get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters):
     else:
         names = ["🔴 고위험군", "🟠 중점 관리군", "🟢 일반군", "🔵 건강 우수군"]
 
-    df_agg['유형'] = df_agg['Cluster'].map(rank_map).apply(
+    df_agg["유형"] = df_agg["Cluster"].map(rank_map).apply(
         lambda x: names[int(x)] if x < len(names) else "⚪ 기타"
     )
 
     inv_map = {v: k for k, v in valid_cols.items()}
-    df_agg = df_agg.rename(columns=inv_map).rename(columns={'표시용이름': '학교(연도)'})
+    df_agg = df_agg.rename(columns=inv_map).rename(columns={"표시용이름": "학교(연도)"})
 
     return df_agg
 
-# ─── 4. 통합 렌더링 함수 ────────────────────────────────────────────────────
-def render_dashboard(tab_df, valid_cols, filters):
-    if filters['school_level']:
-        tab_df = tab_df[tab_df['학교급'].isin(filters['school_level'])]
-    if filters['gender']:
-        tab_df = tab_df[tab_df['성별'].isin(filters['gender'])]
-    if filters['grade']:
-        tab_df = tab_df[tab_df['학년'].isin(filters['grade'])]
+# ─── 5. 통합 렌더링 함수 ───────────────────────────────────────────────────────
+def render_dashboard(raw_df, valid_cols, filters):
+    if len(valid_cols) < 2:
+        st.warning("분석 가능한 수치 지표가 2개 이상 필요합니다. 엑셀 컬럼명을 확인해주세요.")
+        return
+
+    tab_df = apply_filters(raw_df, filters)
+
+    if tab_df.empty:
+        st.info("💡 선택하신 필터 조건에 맞는 데이터가 없습니다.")
+        return
 
     col_set1, col_set2 = st.columns([1, 3])
     metrics = list(valid_cols.keys())
@@ -157,27 +230,15 @@ def render_dashboard(tab_df, valid_cols, filters):
     with col_set1:
         st.write("### ⚙️ 분석 지표")
         x_axis = st.selectbox("X축 (주로 BMI)", metrics, index=0)
-        y_axis = st.selectbox("Y축 (주로 체력지표)", metrics, index=min(1, len(metrics) - 1))
+        y_default = 1 if len(metrics) > 1 else 0
+        y_axis = st.selectbox("Y축 (주로 체력지표)", metrics, index=y_default)
         n_clusters = st.slider("군집 세분화 (개)", 2, 4, 3)
         is_mobile = st.toggle("📱 모바일 최적화")
 
     plot_df = get_clustered_df(tab_df, valid_cols, x_axis, y_axis, n_clusters)
 
     if plot_df.empty:
-        st.warning("⚠️ 분석을 수행하기 위한 데이터가 부족합니다.")
-        return
-
-    if filters['year']:
-        plot_df = plot_df[plot_df['연도'].isin(filters['year'])]
-    if filters['region']:
-        plot_df = plot_df[plot_df['시군'].isin(filters['region'])]
-    if filters['school_level']:
-        plot_df = plot_df[plot_df['학교급'].isin(filters['school_level'])]
-    if filters['school']:
-        plot_df = plot_df[plot_df['순수학교명'].isin(filters['school'])]
-
-    if plot_df.empty:
-        st.info("💡 선택하신 필터 조건에 맞는 데이터가 없습니다.")
+        st.warning("⚠️ 분석을 수행하기 위한 데이터가 부족합니다. 필터를 조금 넓히거나 군집 수를 줄여보세요.")
         return
 
     with col_set2:
@@ -187,23 +248,26 @@ def render_dashboard(tab_df, valid_cols, filters):
             "🟠 중점 관리군": "#FFB74D",
             "🟢 일반군": "#66BB6A",
             "🔵 건강 우수군": "#42A5F5",
-            "🔵 건강 양호군": "#42A5F5"
+            "🔵 건강 양호군": "#42A5F5",
         }
 
         fig = px.scatter(
             plot_df,
             x=x_axis,
             y=y_axis,
-            color='유형',
-            text='학교(연도)',
-            hover_name='학교(연도)',
-            hover_data={'학교급': True, '시군': True},
+            color="유형",
+            text="학교(연도)",
+            hover_name="학교(연도)",
+            hover_data={"학교급": True, "시군": True},
             color_discrete_map=color_map,
             title="🏫 통합 건강 데이터 AI 분석 결과"
         )
         fig.update_traces(
-            textposition='top center',
-            marker=dict(size=12 if is_mobile else 22, line=dict(width=2, color='white'))
+            textposition="top center",
+            marker=dict(
+                size=12 if is_mobile else 22,
+                line=dict(width=2, color="white")
+            )
         )
         fig.update_layout(
             height=550,
@@ -214,8 +278,8 @@ def render_dashboard(tab_df, valid_cols, filters):
     st.markdown("---")
     st.write("### 📋 그룹별 맞춤형 운동 처방 및 교육 프로그램")
 
-    sum_df = plot_df.groupby('유형')[[x_axis, y_axis]].mean().round(1)
-    counts = plot_df['유형'].value_counts()
+    sum_df = plot_df.groupby("유형")[[x_axis, y_axis]].mean().round(1)
+    counts = plot_df["유형"].value_counts()
 
     head_col1, head_col2, head_col3 = st.columns([1.2, 2, 2])
     with head_col1:
@@ -261,59 +325,64 @@ def render_dashboard(tab_df, valid_cols, filters):
 
     with st.expander("🔍 상세 데이터 테이블 보기"):
         st.dataframe(
-            plot_df.drop(columns=['순수학교명', '연도', '시군'], errors='ignore').sort_values(['유형', '학교(연도)']),
+            plot_df.drop(columns=["Cluster"], errors="ignore").sort_values(["유형", "학교(연도)"]),
             use_container_width=True
         )
 
-# ─── 5. 메인 실행 로직 ─────────────────────────────────────────────────────────────
+# ─── 6. 메인 실행 로직 ─────────────────────────────────────────────────────────
 raw_df, meta = load_raw_data()
 
-if raw_df is not None:
-    st.markdown("### 📍 분석 데이터 필터링")
+if raw_df is None:
+    st.error(meta.get("error", "데이터를 불러오지 못했습니다."))
+else:
+    st.success(f"데이터 로드 완료: {os.path.basename(meta['file_path'])}")
+    st.caption(f"불러온 경로: {meta['file_path']}")
 
-    years = sorted([y for y in raw_df['연도'].unique() if y > 0])
-    sigungus = sorted(raw_df['시군'].unique())
-    school_levels = sorted([s for s in raw_df['학교급'].unique() if '전체' not in str(s)])
-    grades = sorted([g for g in raw_df['학년'].unique() if '전체' not in g])
-    genders = sorted([g for g in raw_df['성별'].unique() if '전체' not in g])
+    if not meta["valid_cols"]:
+        st.warning("체력 분석에 사용할 수치형 컬럼을 찾지 못했습니다. 엑셀 컬럼명을 확인해주세요.")
+    else:
+        st.markdown("### 📍 분석 데이터 필터링")
 
-    f1, f2, f3, f4, f5, f6 = st.columns(6)
+        years = sorted([y for y in raw_df["연도"].unique() if y > 0])
+        sigungus = sorted(raw_df["시군"].dropna().astype(str).unique())
+        school_levels = sorted([s for s in raw_df["학교급"].dropna().astype(str).unique() if s != "전체"])
+        grades = sorted([g for g in raw_df["학년"].dropna().astype(str).unique() if g != "전체"])
+        genders = sorted([g for g in raw_df["성별"].dropna().astype(str).unique() if g != "전체"])
 
-    with f1:
-        s_year = st.multiselect("📅 연도", options=years, placeholder="전체")
-    with f2:
-        s_region = st.multiselect("📍 시·군", options=sigungus, placeholder="전체")
-    with f3:
-        s_school_level = st.multiselect("🏷️ 학교급", options=school_levels, placeholder="전체")
-    with f4:
-        s_grade = st.multiselect("🎓 학년", options=grades, placeholder="전체")
-    with f5:
-        s_gender = st.multiselect("👫 성별", options=genders, placeholder="남/여 전체")
+        f1, f2, f3, f4, f5, f6 = st.columns(6)
 
-    tmp = raw_df.copy()
-    if s_year:
-        tmp = tmp[tmp['연도'].isin(s_year)]
-    if s_region:
-        tmp = tmp[tmp['시군'].isin(s_region)]
-    if s_school_level:
-        tmp = tmp[tmp['학교급'].isin(s_school_level)]
-    if s_grade:
-        tmp = tmp[tmp['학년'].isin(s_grade)]
-    if s_gender:
-        tmp = tmp[tmp['성별'].isin(s_gender)]
+        with f1:
+            s_year = st.multiselect("📅 연도", options=years, placeholder="전체")
+        with f2:
+            s_region = st.multiselect("📍 시·군", options=sigungus, placeholder="전체")
+        with f3:
+            s_school_level = st.multiselect("🏷️ 학교급", options=school_levels, placeholder="전체")
+        with f4:
+            s_grade = st.multiselect("🎓 학년", options=grades, placeholder="전체")
+        with f5:
+            s_gender = st.multiselect("👫 성별", options=genders, placeholder="남/여 전체")
 
-    f_schools = sorted(tmp['순수학교명'].unique())
+        school_filter_base = apply_filters(raw_df, {
+            "year": s_year,
+            "region": s_region,
+            "school_level": s_school_level,
+            "grade": s_grade,
+            "gender": s_gender,
+            "school": []
+        })
 
-    with f6:
-        s_school = st.multiselect("🏫 학교명", options=f_schools, placeholder="전체")
+        f_schools = sorted(school_filter_base["순수학교명"].dropna().astype(str).unique())
 
-    filters = {
-        'year': s_year,
-        'region': s_region,
-        'school_level': s_school_level,
-        'grade': s_grade,
-        'gender': s_gender,
-        'school': s_school
-    }
+        with f6:
+            s_school = st.multiselect("🏫 학교명", options=f_schools, placeholder="전체")
 
-    render_dashboard(raw_df, meta['valid_cols'], filters)
+        filters = {
+            "year": s_year,
+            "region": s_region,
+            "school_level": s_school_level,
+            "grade": s_grade,
+            "gender": s_gender,
+            "school": s_school,
+        }
+
+        render_dashboard(raw_df, meta["valid_cols"], filters)
