@@ -1523,6 +1523,15 @@ def render_detail_page():
         chart_df = detail_df.groupby(["학년", "성별"])[metric_col].mean().reset_index()
         fig = px.bar(chart_df, x="학년", y=metric_col, color="성별", barmode="group", title=f"{metric_choice} 학년/성별 평균")
         apply_readable_axes(fig, height=500, margin=dict(t=58, b=34, l=36, r=20))
+        fig.update_layout(
+            legend=dict(
+                title_font=dict(color="#111827", size=13),
+                font=dict(color="#111827", size=13),
+                bgcolor="rgba(255,255,255,0.92)",
+                bordercolor="#cbd5e1",
+                borderwidth=1,
+            )
+        )
         st.plotly_chart(fig, use_container_width=True)
     with right:
         colors = plot_theme_colors()
@@ -1543,19 +1552,25 @@ def render_detail_page():
         )
         apply_plotly_theme(fig_radar, height=500, margin=dict(t=58, b=34, l=34, r=34))
         fig_radar.update_layout(
-            title="학교별 5대 체력 요소 밸런스",
+            title=dict(
+                text="학교별 5대 체력 요소 밸런스",
+                font=dict(color="#111827", size=18, family="Noto Sans KR"),
+            ),
+            font=dict(color="#111827", family="Noto Sans KR", size=14),
             polar=dict(
                 bgcolor=colors["plot"],
                 radialaxis=dict(
                     visible=True,
                     gridcolor=colors["grid"],
                     linecolor=colors["axis"],
-                    tickfont=dict(color=colors["text"]),
+                    tickfont=dict(color="#111827", size=13),
+                    title=dict(font=dict(color="#111827", size=13)),
                 ),
                 angularaxis=dict(
                     gridcolor=colors["grid"],
                     linecolor=colors["axis"],
-                    tickfont=dict(color=colors["text"], size=12),
+                    tickfont=dict(color="#111827", size=15, family="Noto Sans KR"),
+                    linewidth=2,
                 ),
             ),
             showlegend=False,
@@ -1620,6 +1635,20 @@ def render_school_recommendation_page():
         "school_rec",
         fields=["years", "regions", "school_levels", "grades", "genders"],
     )
+    filter_col1, filter_col2 = st.columns([1, 1.4])
+    with filter_col1:
+        program_filter = st.selectbox(
+            "추천 프로그램 필터",
+            ["전체", "건강체력교실 우선 배정 요망", "방과후 체육클럽 권장"],
+            key="school_rec_program_filter",
+        )
+    with filter_col2:
+        school_keyword = st.text_input(
+            "학교명 검색",
+            placeholder="예: 춘천, 원주, ○○중",
+            key="school_rec_keyword",
+        ).strip()
+
     result, error = build_clustered_view(raw_df, meta, filters)
     if error:
         st.warning(error)
@@ -1628,10 +1657,24 @@ def render_school_recommendation_page():
     if risk_schools.empty:
         st.info("현재 조건에서는 추천 대상 학교가 없습니다.")
         return
-    rec_df = risk_schools[["순수학교명", "시군", "연도", "학년", "성별", "유형"]].head(20).copy()
+    rec_df = risk_schools[["순수학교명", "시군", "연도", "학년", "성별", "유형"]].copy()
+    rec_df["추천 프로그램"] = rec_df["유형"].apply(
+        lambda label: "건강체력교실 우선 배정 요망" if label in ["고위험군", "관리 필요군"] else "방과후 체육클럽 권장"
+    )
+    if program_filter != "전체":
+        rec_df = rec_df[rec_df["추천 프로그램"] == program_filter]
+    if school_keyword:
+        rec_df = rec_df[rec_df["순수학교명"].astype(str).str.contains(school_keyword, case=False, na=False)]
+
+    if rec_df.empty:
+        st.info("선택한 추천 프로그램 또는 학교명 조건에 맞는 학교가 없습니다.")
+        return
+
+    st.caption(f"조건에 맞는 추천 대상 {len(rec_df)}건을 표시합니다.")
+    rec_df = rec_df.head(30)
     for _, row in rec_df.iterrows():
-        tag_class = "tag-priority" if row["유형"] in ["고위험군", "관리 필요군"] else "tag-normal"
-        tag_text = "건강체력교실 우선 배정 요망" if tag_class == "tag-priority" else "방과후 체육클럽 권장"
+        tag_class = "tag-priority" if row["추천 프로그램"] == "건강체력교실 우선 배정 요망" else "tag-normal"
+        tag_text = row["추천 프로그램"]
         st.markdown(
             f"""
             <div class="report-card">
