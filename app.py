@@ -72,19 +72,19 @@ html, body, [class*="css"], .stApp {
 }
 
 .block-container {
-    padding-top: 1.2rem !important;
-    padding-bottom: 1rem !important;
-    max-width: 100% !important;
+    padding-top: 2.1rem !important;
+    padding-bottom: 2rem !important;
+    max-width: 1440px !important;
 }
 
 .top-header {
     background: #ffffff;
     border-bottom: 1px solid #e8eaf0;
-    padding: 12px 24px;
+    padding: 10px 20px;
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     border-radius: 10px;
 }
 
@@ -124,13 +124,13 @@ html, body, [class*="css"], .stApp {
     color: #344054;
     font-size: 13px;
     line-height: 1.8;
-    margin-bottom: 18px;
+    margin-bottom: 22px;
 }
 
 .panel-card {
     background: #ffffff;
     border-radius: 14px;
-    padding: 18px;
+    padding: 12px;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
     border: 1px solid #eef1f5;
     height: 100%;
@@ -139,10 +139,14 @@ html, body, [class*="css"], .stApp {
 .map-card {
     background: #ffffff;
     border-radius: 14px;
-    padding: 6px;
+    padding: 4px;
     box-shadow: 0 2px 12px rgba(0,0,0,0.07);
     overflow: hidden;
     border: 1px solid #eef1f5;
+}
+
+.section-space {
+    height: 22px;
 }
 
 .report-card {
@@ -438,7 +442,6 @@ def render_filter_controls(df, meta, key_prefix, include_axis=True):
     if state["y_ax"] not in metric_options:
         state["y_ax"] = metric_options[1 if len(metric_options) > 1 else 0]
 
-    st.markdown('<div class="panel-card">', unsafe_allow_html=True)
     row1 = st.columns(5)
     with row1[0]:
         years = st.multiselect("연도", sorted(df["연도"].dropna().unique()), default=state["years"], key=f"{key_prefix}_years")
@@ -464,8 +467,6 @@ def render_filter_controls(df, meta, key_prefix, include_axis=True):
             y_ax = st.selectbox("수직축", metric_options, index=metric_options.index(state["y_ax"]), key=f"{key_prefix}_y")
         with row2[2]:
             n_cl = st.slider("군집 수", 2, 4, state["clusters"], key=f"{key_prefix}_clusters")
-    st.markdown("</div>", unsafe_allow_html=True)
-
     state.update(
         {
             "years": years,
@@ -705,8 +706,24 @@ def render_scatter(cluster_source, raw_x, raw_y, x_ax, y_ax):
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        xaxis=dict(showgrid=True, gridcolor="rgba(15,23,42,0.08)"),
-        yaxis=dict(showgrid=True, gridcolor="rgba(15,23,42,0.08)"),
+        xaxis=dict(
+            showgrid=True,
+            gridcolor="rgba(15,23,42,0.10)",
+            zeroline=False,
+            showline=True,
+            linecolor="#475467",
+            tickfont=dict(color="#111827", size=12),
+            titlefont=dict(color="#111827", size=14),
+        ),
+        yaxis=dict(
+            showgrid=True,
+            gridcolor="rgba(15,23,42,0.10)",
+            zeroline=False,
+            showline=True,
+            linecolor="#475467",
+            tickfont=dict(color="#111827", size=12),
+            titlefont=dict(color="#111827", size=14),
+        ),
     )
     st.plotly_chart(fig, use_container_width=True)
 
@@ -823,10 +840,8 @@ def render_overview():
     st.markdown('<div class="map-card">', unsafe_allow_html=True)
     render_heatmap(cluster_source)
     st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
-    st.markdown('<div class="panel-card">', unsafe_allow_html=True)
+    st.markdown("<div class='section-space'></div>", unsafe_allow_html=True)
     render_scatter(cluster_source, result["raw_x"], result["raw_y"], result["x_ax"], result["y_ax"])
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_heatmap_page():
@@ -841,10 +856,8 @@ def render_heatmap_page():
     st.markdown('<div class="map-card">', unsafe_allow_html=True)
     render_heatmap(result["cluster_source"])
     st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
-    st.markdown('<div class="panel-card">', unsafe_allow_html=True)
+    st.markdown("<div class='section-space'></div>", unsafe_allow_html=True)
     render_scatter(result["cluster_source"], result["raw_x"], result["raw_y"], result["x_ax"], result["y_ax"])
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_allometric_page():
@@ -871,9 +884,7 @@ def render_cluster_page():
         return
 
     st.markdown("#### AI 다차원 군집 분석")
-    st.markdown('<div class="panel-card">', unsafe_allow_html=True)
     render_scatter(result["cluster_source"], result["raw_x"], result["raw_y"], result["x_ax"], result["y_ax"])
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_detail_page():
