@@ -1294,7 +1294,7 @@ def render_scatter(cluster_source, raw_x, raw_y, x_ax, y_ax):
             "중점관리군": "#ef8b2c",
             "일반군": "#1c9d74",
             "우수군": "#2574ea",
-            "건 양호군": "#2574ea",
+            "건강 양호군": "#2574ea",
         },
     )
     fig.update_traces(
@@ -1630,10 +1630,9 @@ def render_overview():
         render_yearly_trend(cluster_source)
     with right:
         st.markdown(
-            """
+            f"""
             <div class="insight-card">
-                <h4>운영 메모</h4>
-                <p>오늘 기준 도내 취약 체력 신호를 요약한 화면입니다. 취약군 비율과 AI 고위험군 추정치를 함께 확인하고, 지도·처방·행정 지원 메뉴로 바로 이어지는 의사결정 출발점으로 활용할 수 있습니다.</p>
+                <p>💡 현재 <b>{dominant_group}</b>이(가) 전체의 <b>{dominant_share}%</b>를 차지하고 있으며, 적극적 개입이 필요한 취약군(고위험·관리필요군) 비율은 <b>{weak_share}%</b>입니다. 취약군 비율이 20%를 초과할 경우 도교육청 차원의 긴급 예산 편성과 건강체력교실 확대 운영이 권장됩니다. 상단의 AI 고위험군 추정 대상({high_risk_estimate:,}명)을 우선 지원 타겟으로 설정하십시오.</p>
             </div>
             """,
             unsafe_allow_html=True,
@@ -1708,7 +1707,7 @@ def render_allometric_page():
     n_schools = result["filtered_df"]["순수학교명"].nunique()
     st.markdown(f"""
         <div class="insight-card" style="margin-bottom: 18px;">
-            <p>💡 <b>데이터 해석:</b> 현재 선택된 <b>{n_schools}개 학교</b>를 대상으로 <b>{selected_metric}</b> 지표의 체격 보정 효과를 분석 중입니다. 원점수에서 체격 조건으로 인해 불리하게 평가되었던 학생들이 보정 후 어떻게 재평가되는지 비교해 보세요.</p>
+            <p>💡 현재 선택된 <b>{n_schools}개 학교</b>의 <b>{selected_metric}</b> 원점수에 강원도 실측 체형 가중치를 적용한 결과입니다. 보정 필터를 켰을 때 산점도 내 학교들의 위치가 상향 이동한다면, 해당 학교의 학생들은 단순 체력 부족이 아닌 체격(비만도 등) 요인으로 인해 저평가받고 있음을 의미합니다. 이 경우 무리한 체력 훈련보다는 체조성 개선(영양 관리 등) 프로그램의 병행이 필수적입니다.</p>
         </div>
     """, unsafe_allow_html=True)
     
@@ -1772,7 +1771,7 @@ def render_cluster_page():
     
     st.markdown(f"""
         <div class="insight-card" style="margin-bottom: 18px;">
-            <p>💡 <b>데이터 해석:</b> 필터링된 <b>{n_schools}개 학교</b> 중 <b>{dom_group}</b>이(가) <b>{dom_rate}%</b>로 가장 높은 비중을 차지하고 있습니다. 산점도의 붉은색·주황색 군집에 속한 학교일수록 체력 저하와 체격 불균형이 동시에 나타나 집중적인 행정 지도가 필요합니다.</p>
+            <p>💡 조회된 <b>{n_schools}개 학교</b> 중 <b>{dom_group}</b>이(가) <b>{dom_rate}%</b>로 가장 큰 비중을 차지합니다. X축과 Y축을 기준으로 분류된 붉은색(고위험군)과 주황색(중점관리군) 군집은 1순위 집중 관리 대상입니다. 만약 특정 시·군이나 학교급이 이 군집에 과도하게 몰려 있다면, 해당 지역 단위의 체육 전문 강사 파견 및 방과후 스포츠 클럽 신설을 즉각적으로 검토해야 합니다.</p>
         </div>
     """, unsafe_allow_html=True)
     
@@ -1812,7 +1811,7 @@ def render_detail_page():
     overall_avg = detail_df[metric_col].mean() if not detail_df.empty else 0
     st.markdown(f"""
         <div class="insight-card" style="margin-bottom: 18px;">
-            <p>💡 <b>데이터 해석:</b> 조회된 <b>{n_schools}개 학교</b>의 <b>{metric_choice}</b> 전체 평균은 <b>{overall_avg:.1f}</b>입니다. 좌측 차트에서 특정 학년·성별의 취약 구간을 파악하고, 우측 차트에서 선택한 학교의 5대 체력 요소 밸런스를 확인하세요.</p>
+            <p>💡 선택한 <b>{n_schools}개 학교</b>의 <b>{metric_choice}</b> 전체 평균은 <b>{overall_avg:.1f}</b>입니다. 좌측 막대그래프에서 특정 학년이나 성별의 수치가 이 평균선보다 눈에 띄게 낮다면 해당 그룹에 대한 타겟형 훈련이 필요합니다. 우측 레이더 차트를 통해 학교별 5대 체력 요소 중 가장 찌그러진(취약한) 영역을 파악하고, 다음 학기 체육 교육과정 편성 시 해당 종목의 시수를 확대하는 근거 자료로 활용하십시오.</p>
         </div>
     """, unsafe_allow_html=True)
     
@@ -1902,7 +1901,7 @@ def render_prescription_page():
     n_groups = len(visible_rows)
     st.markdown(f"""
         <div class="insight-card" style="margin-bottom: 18px;">
-            <p>💡 <b>데이터 해석:</b> 분석된 <b>{n_groups}개 체력 집단</b>별로 가장 시급하게 개선해야 할 체력 요인을 AI가 탐지했습니다. 선택된 조건의 학생들이 겪고 있는 주요 결핍 요소를 보완하기 위해 각 탭의 맞춤형 주간 운동 빈도, 강도, 시간, 종류(FITT)를 참고하여 체육 수업을 구성해 보세요.</p>
+            <p>💡 분석된 <b>{n_groups}개 체력 집단</b>별 데이터 분포를 통해 가장 시급하게 개선해야 할 최우선 결핍 요인을 탐지했습니다. 각 탭에 제시된 주간 운동 빈도(F), 강도(I), 시간(T), 종류(T)는 해당 그룹의 한계치를 고려한 권고안입니다. 특히 고위험군의 경우 강도를 낮추고 빈도를 높인 '기초 체력 회복' 위주로, 일반·우수군의 경우 강도를 높인 '심화 성장' 위주로 현장 체육 교사의 월간 지도안(Lesson Plan) 수립 가이드로 직접 적용할 수 있습니다.</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -1929,7 +1928,7 @@ def render_prescription_page():
             "I": "10~15회 반복 가능한 강도",
             "T_time": "30~40분",
             "T_type": "스쿼트·팔굽혀펴기·밴드 운동",
-            "title": "기초 근력 밸런 확보",
+            "title": "기초 근력 밸런스 확보",
             "desc": "코어 및 큰 근육 위주의 근력 강화가 필요합니다. 맨몸 운동으로 자세를 먼저 잡고, 소도구를 활용해 근지구력을 늘립니다.",
         },
         "유연성": {
@@ -2183,7 +2182,7 @@ def render_school_recommendation_page():
     top_program = risk_schools["추천프로그램"].value_counts().idxmax()
     st.markdown(f"""
         <div class="insight-card" style="margin-bottom: 18px;">
-            <p>💡 <b>데이터 해석:</b> 현재 필터 조건에서 관리 대상에 해당하는 <b>{n_schools}개 학교</b>의 결핍 요소를 분석한 결과, <b>'{top_program}'</b> 사업 지원이 가장 시급한 것으로 나타났습니다. 아래 세부 필터를 통해 특정 교육 사업의 대상 학교만 따로 추출하고 예산 배정에 활용하세요.</p>
+            <p>💡 현재 필터링된 <b>{n_schools}개 위기 징후 학교</b>의 다차원 결핍 요소를 분석한 결과, <b>'{top_program}'</b> 사업의 예산 배정이 가장 시급한 것으로 도출되었습니다. 고위험군 비율이 높고 유연성이 심각하게 낮으면 '유연성·코어 클럽'을, 비만이 동반된 저체력 학교에는 '건강체력교실'을 자동으로 매칭했습니다. 교육청 담당자는 아래 세부 필터를 통해 명단을 추출하고 우선순위 학교부터 공문 발송 및 예산 교부를 집행하시기 바랍니다.</p>
         </div>
     """, unsafe_allow_html=True)
 
