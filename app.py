@@ -131,15 +131,6 @@ html, body, [class*="css"], .stApp {
     margin-bottom: 22px;
 }
 
-.panel-card {
-    background: #ffffff;
-    border-radius: 14px;
-    padding: 12px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-    border: 1px solid #eef1f5;
-    height: 100%;
-}
-
 .map-card {
     background: #ffffff;
     border-radius: 14px;
@@ -147,10 +138,6 @@ html, body, [class*="css"], .stApp {
     box-shadow: 0 2px 12px rgba(0,0,0,0.07);
     overflow: hidden;
     border: 1px solid #eef1f5;
-}
-
-.section-space {
-    height: 22px;
 }
 
 .report-card {
@@ -265,6 +252,10 @@ html, body, [class*="css"], .stApp {
     font-weight: 800;
     margin-bottom: 8px;
 }
+
+.section-space {
+    height: 22px;
+}
 </style>
 """,
     unsafe_allow_html=True,
@@ -295,7 +286,7 @@ def load_raw_data():
     def find_col(keywords):
         for column in df.columns:
             name = str(column)
-            if any(keyword in name for keyword in keywords):
+            if any(keyword.lower() in name.lower() for keyword in keywords):
                 return column
         return None
 
@@ -325,6 +316,7 @@ def load_raw_data():
     year_col = find_col(["연도"])
     lat_col = find_col(["위도", "latitude", "lat", "Y좌표", "y좌표"])
     lon_col = find_col(["경도", "longitude", "lon", "X좌표", "x좌표"])
+
     df["연도"] = (
         pd.to_numeric(df[year_col], errors="coerce").fillna(0).astype(int)
         if year_col
@@ -433,7 +425,6 @@ def geocode_school_location(school_name, region_name):
         f"{school_name}, 강원특별자치도, 대한민국",
         f"{school_name}, 대한민국",
     ]
-
     for query in queries:
         try:
             params = urlencode({"q": query, "format": "jsonv2", "limit": 1})
@@ -447,7 +438,6 @@ def geocode_school_location(school_name, region_name):
                 return float(payload[0]["lat"]), float(payload[0]["lon"])
         except Exception:
             continue
-
     return None, None
 
 
@@ -500,6 +490,7 @@ def render_filter_controls(df, meta, key_prefix, include_axis=True):
             y_ax = st.selectbox("수직축", metric_options, index=metric_options.index(state["y_ax"]), key=f"{key_prefix}_y")
         with row2[2]:
             n_cl = st.slider("군집 수", 2, 4, state["clusters"], key=f"{key_prefix}_clusters")
+
     state.update(
         {
             "years": years,
@@ -612,15 +603,10 @@ def build_map_df(cluster_source):
         base_coords = map_df["시군"].apply(get_coords)
         map_df["base_lat"] = base_coords.apply(lambda value: value[0])
         map_df["base_lon"] = base_coords.apply(lambda value: value[1])
-
         map_df["lat"] = pd.NA
         map_df["lon"] = pd.NA
 
-        unique_schools = (
-            map_df[["순수학교명", "시군"]]
-            .drop_duplicates()
-            .reset_index(drop=True)
-        )
+        unique_schools = map_df[["순수학교명", "시군"]].drop_duplicates().reset_index(drop=True)
         geocoded = {}
         for _, school_row in unique_schools.iterrows():
             school_name = str(school_row["순수학교명"])
@@ -707,7 +693,6 @@ def render_heatmap(cluster_source):
             showlegend=False,
         )
     )
-
     fig.add_annotation(
         x=0.98,
         y=0.96,
@@ -827,7 +812,6 @@ if "current_page" not in st.session_state:
 
 with st.sidebar:
     st.markdown('<div class="sidebar-logo">🏃 PAPS CARE+</div>', unsafe_allow_html=True)
-
     st.markdown('<div class="sidebar-group">', unsafe_allow_html=True)
     st.markdown('<div class="sidebar-section">1. 📊 통합 대시보드 (Overview)</div>', unsafe_allow_html=True)
     render_nav_button("도내 체력 현황 요약")
@@ -883,8 +867,7 @@ st.markdown(
     """
     <div class="notice-card">
         <b>PAPS CARE+ Intelligence</b><br>
-        강원도 학교 체력 데이터를 기반으로 집단별 체력 수준을 AI 군집 분석하고,
-        취약 지역과 맞춤형 처방 방향을 행정 대시보드 형태로 제공합니다.
+        강원도 학교 체력 데이터를 기반으로 집단별 체력 수준을 AI 군집 분석하고, 취약 지역과 맞춤형 처방 방향을 행정 대시보드 형태로 제공합니다.
     </div>
     """,
     unsafe_allow_html=True,
@@ -946,9 +929,17 @@ def render_allometric_page():
 
     st.markdown("#### 체격 보정 평가 모델 (Allometric)")
     allometric_df = result["cluster_source"].copy()
-    allometric_df["체격 보정 기준치"] = allometric_df[result["raw_x"]].abs().fillna(allometric_df[result["raw_x"]].mean()).clip(lower=1)
+    allometric_df["체격 보정 기준치"] = (
+        allometric_df[result["raw_x"]].abs().fillna(allometric_df[result["raw_x"]].mean()).clip(lower=1)
+    )
     allometric_df["보정 심폐지표"] = allometric_df[result["raw_y"]] / (allometric_df["체격 보정 기준치"] ** 0.33)
-    fig = px.scatter(allometric_df, x=result["raw_y"], y="보정 심폐지표", color="유형", title="원점수 대비 체격 보정 점수 비교")
+    fig = px.scatter(
+        allometric_df,
+        x=result["raw_y"],
+        y="보정 심폐지표",
+        color="유형",
+        title="원점수 대비 체격 보정 점수 비교",
+    )
     fig.update_layout(height=560, plot_bgcolor="white", paper_bgcolor="white")
     st.plotly_chart(fig, use_container_width=True)
 
@@ -959,7 +950,6 @@ def render_cluster_page():
     if error:
         st.warning(error)
         return
-
     st.markdown("#### AI 다차원 군집 분석")
     render_scatter(result["cluster_source"], result["raw_x"], result["raw_y"], result["x_ax"], result["y_ax"])
 
@@ -970,7 +960,6 @@ def render_detail_page():
     if filtered_df.empty:
         st.warning("선택한 조건에 맞는 데이터가 없습니다.")
         return
-
     metric_choice = st.selectbox("상세 지표 선택", list(meta["valid"].keys()))
     metric_col = meta["valid"][metric_choice]
     detail_df = filtered_df.dropna(subset=[metric_col]).copy()
@@ -987,7 +976,6 @@ def render_prescription_page():
     if error:
         st.warning(error)
         return
-
     row_order = ["고위험군", "관리 필요군", "중점관리군", "일반군", "건강 양호군", "우수군"]
     visible_rows = [label for label in row_order if label in result["cluster_source"]["유형"].unique()]
     for start in range(0, len(visible_rows), 2):
@@ -1017,7 +1005,6 @@ def render_school_recommendation_page():
     if error:
         st.warning(error)
         return
-
     risk_schools = result["cluster_source"][result["cluster_source"]["유형"].isin(["고위험군", "관리 필요군", "중점관리군"])].copy()
     if risk_schools.empty:
         st.info("현재 조건에서는 추천 대상 학교가 없습니다.")
@@ -1031,9 +1018,96 @@ def render_teacher_priority_page():
     if error:
         st.warning(error)
         return
-
     risk_schools = result["cluster_source"][result["cluster_source"]["유형"].isin(["고위험군", "관리 필요군", "중점관리군"])].copy()
     priority = risk_schools.groupby("순수학교명").agg({"유형": "count", result["raw_y"]: "mean", "시군": "first"}).reset_index()
     priority.columns = ["학교명", "취약 학생군 건수", "심폐지표 평균", "시군"]
     priority = priority.sort_values(["취약 학생군 건수", "심폐지표 평균"], ascending=[False, True])
-    st.dataframe(priority.head(50), use_container_width=True
+    st.dataframe(priority.head(50), use_container_width=True)
+
+
+def render_budget_page():
+    filters = render_filter_controls(raw_df, meta, "budget", include_axis=True)
+    result, error = build_clustered_view(raw_df, meta, filters)
+    if error:
+        st.warning(error)
+        return
+    budget_df = (
+        result["cluster_source"]
+        .groupby("시군")
+        .agg(
+            취약학교수=("유형", lambda x: int(x.isin(["고위험군", "관리 필요군", "중점관리군"]).sum())),
+            전체학교수=("순수학교명", "count"),
+            평균심폐지표=(result["raw_y"], "mean"),
+        )
+        .reset_index()
+    )
+    budget_df["취약비율"] = (budget_df["취약학교수"] / budget_df["전체학교수"] * 100).round(1)
+    fig = px.bar(budget_df.sort_values("취약비율", ascending=False), x="시군", y="취약비율", title="지역별 취약 비율")
+    st.plotly_chart(fig, use_container_width=True)
+    st.dataframe(budget_df.sort_values("취약비율", ascending=False), use_container_width=True)
+
+
+def render_b2c_page():
+    st.markdown("#### 학생/학부모 서비스")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        height_cm = st.number_input("키 (cm)", min_value=120, max_value=210, value=165, step=1)
+    with c2:
+        weight_kg = st.number_input("몸무게 (kg)", min_value=25, max_value=150, value=58, step=1)
+    with c3:
+        shuttle_runs = st.number_input("셔틀런 횟수", min_value=1, max_value=200, value=42, step=1)
+
+    bmi, allometric_index, cluster_label = classify_student_profile(height_cm, weight_kg, shuttle_runs)
+    title_1, body_1, title_2, body_2 = get_prescription_content(cluster_label)
+
+    a, b, c = st.columns(3)
+    with a:
+        st.metric("BMI", f"{bmi:.1f}")
+    with b:
+        st.metric("보정 심폐지표", f"{allometric_index:.2f}")
+    with c:
+        st.metric("AI 체력군", cluster_label)
+
+    left, right = st.columns(2)
+    with left:
+        st.markdown(
+            f"""
+            <div class="phone-card">
+                <div class="phone-badge">나의 AI 체력 진단</div>
+                <h4 style="margin:0 0 10px 0;">현재 상태: {cluster_label}</h4>
+                <p style="margin:0;color:#475467;line-height:1.8;">
+                    키 {height_cm}cm, 몸무게 {weight_kg}kg, 셔틀런 {int(shuttle_runs)}회를 기준으로 개인 체력군을 시뮬레이션한 결과입니다.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with right:
+        st.markdown(
+            f"""
+            <div class="phone-card">
+                <div class="phone-badge">4주 맞춤 운동 플랜</div>
+                <h4 style="margin:0 0 10px 0;">{title_1}</h4>
+                <p style="margin:0;color:#475467;line-height:1.8;">{body_1}</p>
+                <p style="margin:12px 0 0 0;color:#475467;line-height:1.8;"><b>{title_2}</b><br>{body_2}</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+page_map = {
+    "도내 체력 현황 요약": render_overview,
+    "체력 취약망 지도 (Heatmap)": render_heatmap_page,
+    "체격 보정 평가 모델 (Allometric)": render_allometric_page,
+    "AI 다차원 군집 분석": render_cluster_page,
+    "종목/학년별 상세 통계": render_detail_page,
+    "집단별 FITT 처방": render_prescription_page,
+    "학교별 교육 프로그램 추천": render_school_recommendation_page,
+    "체육 강사 우선 배치망": render_teacher_priority_page,
+    "지역별 예산 집행 타당성": render_budget_page,
+    "나의 AI 체력 진단": render_b2c_page,
+    "4주 맞춤 운동 플랜 발급": render_b2c_page,
+}
+
+page_map[current_page]()
