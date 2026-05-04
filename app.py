@@ -26,13 +26,19 @@ st.markdown(
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
 
 :root {
-    color-scheme: light dark;
+    color-scheme: light;
 }
 
 html, body, [class*="css"], .stApp {
     font-family: 'Noto Sans KR', sans-serif;
-    background-color: #f5f6fa !important;
-    color: #111827;
+    background-color: #ffffff !important;
+    color: #111827 !important;
+}
+
+[data-testid="stAppViewContainer"],
+[data-testid="stMain"],
+section.main {
+    background-color: #ffffff !important;
 }
 
 #MainMenu, footer {
@@ -60,11 +66,16 @@ html, body, [class*="css"], .stApp {
     background: #ecfdf5;
     color: #0f766e !important;
     border-bottom: 1px solid #d1fae5;
-    padding: 11px 16px;
+    padding: 13px 16px;
+    min-height: 42px;
+    display: flex;
+    align-items: center;
     font-size: 15px;
     font-weight: 900;
+    line-height: 1.25;
     letter-spacing: 0;
-    margin-bottom: 2px;
+    margin-bottom: 7px;
+    white-space: nowrap;
 }
 
 .sidebar-group {
@@ -344,105 +355,6 @@ html, body, [class*="css"], .stApp {
     margin-top: 10px;
     color: #344054;
     font-size: 13px;
-}
-
-@media (prefers-color-scheme: dark) {
-    html, body, [class*="css"], .stApp {
-        background-color: #0b1220 !important;
-        color: #e5e7eb !important;
-    }
-
-    [data-testid="stSidebar"] {
-        background-color: #0f172a !important;
-        border-right-color: #1f2937;
-    }
-
-    [data-testid="stSidebar"] label,
-    [data-testid="stSidebar"] p,
-    [data-testid="stSidebar"] span,
-    [data-testid="stSidebar"] div {
-        color: #e5e7eb !important;
-    }
-
-    .sidebar-logo {
-        background: #052e2b;
-        color: #5eead4 !important;
-        border-bottom-color: #134e4a;
-    }
-
-    .sidebar-section {
-        color: #cbd5e1 !important;
-    }
-
-    [data-testid="stButton"] button {
-        color: #d1d5db !important;
-    }
-
-    [data-testid="stButton"] button:hover,
-    .menu-active {
-        color: #93c5fd !important;
-    }
-
-    .top-header,
-    .notice-card,
-    .map-card,
-    .report-card,
-    .insight-card,
-    [data-testid="stMetric"] {
-        background: #111827 !important;
-        border-color: #263244 !important;
-        color: #e5e7eb !important;
-        box-shadow: none;
-    }
-
-    .phone-card,
-    .mobile-frame,
-    .mission-row {
-        background: #111827 !important;
-        border-color: #374151 !important;
-        color: #e5e7eb !important;
-    }
-
-    .page-title {
-        color: #5eead4 !important;
-    }
-
-    .breadcrumb,
-    .top-header .breadcrumb-nav,
-    [data-testid="stCaptionContainer"] {
-        color: #cbd5e1 !important;
-    }
-
-    .breadcrumb span,
-    .top-header .breadcrumb-nav b,
-    .insight-card h4,
-    .report-card h4 {
-        color: #f8fafc !important;
-    }
-
-    .notice-card,
-    .notice-card b,
-    .report-card p,
-    .insight-card p,
-    [data-testid="stMarkdownContainer"] p,
-    [data-testid="stMarkdownContainer"] li,
-    [data-testid="stMarkdownContainer"] span {
-        color: #e5e7eb !important;
-    }
-
-    [data-testid="stMetricLabel"] {
-        color: #cbd5e1 !important;
-    }
-
-    [data-testid="stMetricValue"] {
-        color: #93c5fd !important;
-    }
-
-    .alert-card {
-        background: #431407 !important;
-        border-color: #9a3412 !important;
-        color: #fed7aa !important;
-    }
 }
 </style>
 """,
@@ -839,42 +751,14 @@ def build_map_df(cluster_source):
 
 
 def plot_theme_colors():
-    base = None
-    try:
-        context_theme = getattr(getattr(st, "context", None), "theme", None)
-        if isinstance(context_theme, dict):
-            base = context_theme.get("base") or context_theme.get("type")
-        elif context_theme is not None:
-            base = getattr(context_theme, "base", None) or getattr(context_theme, "type", None)
-    except Exception:
-        base = None
-
-    if not base:
-        try:
-            base = st.get_option("theme.base")
-        except Exception:
-            base = "light"
-
-    is_dark = str(base).lower() == "dark"
-    if is_dark:
-        return {
-            "paper": "#111827",
-            "plot": "#111827",
-            "text": "#f8fafc",
-            "muted": "#cbd5e1",
-            "grid": "rgba(203, 213, 225, 0.26)",
-            "axis": "#cbd5e1",
-            "card": "rgba(17, 24, 39, 0.94)",
-            "border": "rgba(148, 163, 184, 0.45)",
-        }
-
+    # 발표 화면에서는 배경을 흰색으로 고정하고, 축/라벨은 진한 색으로 유지합니다.
     return {
         "paper": "#ffffff",
         "plot": "#ffffff",
         "text": "#111827",
         "muted": "#344054",
-        "grid": "rgba(15, 23, 42, 0.14)",
-        "axis": "#475467",
+        "grid": "rgba(15, 23, 42, 0.18)",
+        "axis": "#1f2937",
         "card": "rgba(255, 255, 255, 0.96)",
         "border": "rgba(210, 215, 225, 0.9)",
     }
