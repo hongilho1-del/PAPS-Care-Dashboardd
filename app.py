@@ -1,4 +1,3 @@
-```python
 import os
 
 import pandas as pd
@@ -1126,4 +1125,4 @@ with main_tabs[0]:
 
 with main_tabs[1]:
     render_student_view()
-```
+
