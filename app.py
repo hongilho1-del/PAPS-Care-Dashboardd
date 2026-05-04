@@ -1294,7 +1294,7 @@ def render_scatter(cluster_source, raw_x, raw_y, x_ax, y_ax):
             "중점관리군": "#ef8b2c",
             "일반군": "#1c9d74",
             "우수군": "#2574ea",
-            "건강 양호군": "#2574ea",
+            "건 양호군": "#2574ea",
         },
     )
     fig.update_traces(
@@ -1698,12 +1698,20 @@ def render_allometric_page():
     filters["x_ax"] = "BMI" if "BMI" in metric_options else metric_options[0]
     filters["y_ax"] = selected_metric
     filters["clusters"] = 4
+    
     result, error = build_clustered_view(raw_df, meta, filters)
     if error:
         st.warning(error)
         return
 
     st.markdown("#### 체격 보정 평가 모델 (Allometric)")
+    n_schools = result["filtered_df"]["순수학교명"].nunique()
+    st.markdown(f"""
+        <div class="insight-card" style="margin-bottom: 18px;">
+            <p>💡 <b>데이터 해석:</b> 현재 선택된 <b>{n_schools}개 학교</b>를 대상으로 <b>{selected_metric}</b> 지표의 체격 보정 효과를 분석 중입니다. 원점수에서 체격 조건으로 인해 불리하게 평가되었던 학생들이 보정 후 어떻게 재평가되는지 비교해 보세요.</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
     correction_on = st.toggle("AI 보정 필터 켜기", value=True)
     allometric_df = result["cluster_source"].copy()
     allometric_df["체격 보정 기준치"] = (
@@ -1741,14 +1749,6 @@ def render_allometric_page():
         apply_readable_axes(fig_adjusted, height=520, margin=dict(t=56, b=28, l=28, r=20))
         fig_adjusted.update_layout(legend=dict(font=dict(color="#111827", size=12), bgcolor="rgba(255,255,255,0.85)"))
         st.plotly_chart(fig_adjusted, use_container_width=True)
-    st.markdown(
-        """
-        <div class="alert-card">
-            AI 보정 필터를 켜면 체격 조건 때문에 원점수에서 불리했던 관측치가 재평가되는 흐름을 확인할 수 있습니다.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
 
 
 def render_cluster_page():
@@ -1763,21 +1763,24 @@ def render_cluster_page():
     if error:
         st.warning(error)
         return
+        
     st.markdown("#### AI 다차원 군집 분석")
+    cs = result["cluster_source"]
+    n_schools = cs["순수학교명"].nunique()
+    dom_group = cs["유형"].value_counts().idxmax()
+    dom_rate = round(cs["유형"].value_counts().max() / len(cs) * 100, 1)
+    
+    st.markdown(f"""
+        <div class="insight-card" style="margin-bottom: 18px;">
+            <p>💡 <b>데이터 해석:</b> 필터링된 <b>{n_schools}개 학교</b> 중 <b>{dom_group}</b>이(가) <b>{dom_rate}%</b>로 가장 높은 비중을 차지하고 있습니다. 산점도의 붉은색·주황색 군집에 속한 학교일수록 체력 저하와 체격 불균형이 동시에 나타나 집중적인 행정 지도가 필요합니다.</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
     left, right = st.columns([1.45, 0.8])
     with left:
         render_scatter(result["cluster_source"], result["raw_x"], result["raw_y"], result["x_ax"], result["y_ax"])
     with right:
         render_cluster_pie(result["cluster_source"])
-        st.markdown(
-            """
-            <div class="insight-card">
-                <h4>군집 해석</h4>
-                <p>고위험군, 중점관리군, 일반군, 우수군의 상대적 위치를 함께 보면서 어떤 학교군에 행정 개입이 필요한지 판단합니다.</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
 
 
 def render_detail_page():
@@ -1799,9 +1802,20 @@ def render_detail_page():
     if filtered_df.empty:
         st.warning("선택한 조건에 맞는 데이터가 없습니다.")
         return
+        
     metric_choice = st.selectbox("상세 지표 선택", list(meta["valid"].keys()))
     metric_col = meta["valid"][metric_choice]
     detail_df = filtered_df.dropna(subset=[metric_col]).copy()
+    
+    st.markdown("#### 종목/학년별 상세 통계")
+    n_schools = detail_df["순수학교명"].nunique()
+    overall_avg = detail_df[metric_col].mean() if not detail_df.empty else 0
+    st.markdown(f"""
+        <div class="insight-card" style="margin-bottom: 18px;">
+            <p>💡 <b>데이터 해석:</b> 조회된 <b>{n_schools}개 학교</b>의 <b>{metric_choice}</b> 전체 평균은 <b>{overall_avg:.1f}</b>입니다. 좌측 차트에서 특정 학년·성별의 취약 구간을 파악하고, 우측 차트에서 선택한 학교의 5대 체력 요소 밸런스를 확인하세요.</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
     left, right = st.columns([1, 1])
     with left:
         chart_df = detail_df.groupby(["학년", "성별"])[metric_col].mean().reset_index()
@@ -1876,14 +1890,21 @@ def render_prescription_page():
         return
 
     st.markdown("#### 집단별 5대 요인 기반 맞춤형 FITT 처방")
-    st.caption("AI가 판별한 체력 군집과 5대 체력 요인의 불균형을 동시에 고려하여 최적의 운동 처방을 제안합니다.")
-
+    
     cluster_source = result["cluster_source"]
     row_order = ["고위험군", "관리 필요군", "중점관리군", "일반군", "건강 양호군", "우수군"]
     visible_rows = [label for label in row_order if label in cluster_source["유형"].unique()]
+    
     if not visible_rows:
         st.info("데이터가 부족하여 처방을 생성할 수 없습니다.")
         return
+        
+    n_groups = len(visible_rows)
+    st.markdown(f"""
+        <div class="insight-card" style="margin-bottom: 18px;">
+            <p>💡 <b>데이터 해석:</b> 분석된 <b>{n_groups}개 체력 집단</b>별로 가장 시급하게 개선해야 할 체력 요인을 AI가 탐지했습니다. 선택된 조건의 학생들이 겪고 있는 주요 결핍 요소를 보완하기 위해 각 탭의 맞춤형 주간 운동 빈도, 강도, 시간, 종류(FITT)를 참고하여 체육 수업을 구성해 보세요.</p>
+        </div>
+    """, unsafe_allow_html=True)
 
     fitness_cols = {
         "심폐지구력": meta["valid"].get("심폐지구력"),
@@ -1908,7 +1929,7 @@ def render_prescription_page():
             "I": "10~15회 반복 가능한 강도",
             "T_time": "30~40분",
             "T_type": "스쿼트·팔굽혀펴기·밴드 운동",
-            "title": "기초 근력 밸런스 확보",
+            "title": "기초 근력 밸런 확보",
             "desc": "코어 및 큰 근육 위주의 근력 강화가 필요합니다. 맨몸 운동으로 자세를 먼저 잡고, 소도구를 활용해 근지구력을 늘립니다.",
         },
         "유연성": {
@@ -2099,7 +2120,6 @@ def render_school_recommendation_page():
         return
 
     st.markdown("#### 🎯 데이터 기반 학교별 맞춤 프로그램 추천")
-    st.caption("AI 군집 결과와 학교별 취약 요인을 결합하여 최적의 교육 사업을 매칭합니다.")
 
     risk_schools = result["cluster_source"].copy()
     if risk_schools.empty:
@@ -2158,6 +2178,14 @@ def render_school_recommendation_page():
         lambda row: pd.Series(get_rec_program(row)),
         axis=1,
     )
+
+    n_schools = len(risk_schools)
+    top_program = risk_schools["추천프로그램"].value_counts().idxmax()
+    st.markdown(f"""
+        <div class="insight-card" style="margin-bottom: 18px;">
+            <p>💡 <b>데이터 해석:</b> 현재 필터 조건에서 관리 대상에 해당하는 <b>{n_schools}개 학교</b>의 결핍 요소를 분석한 결과, <b>'{top_program}'</b> 사업 지원이 가장 시급한 것으로 나타났습니다. 아래 세부 필터를 통해 특정 교육 사업의 대상 학교만 따로 추출하고 예산 배정에 활용하세요.</p>
+        </div>
+    """, unsafe_allow_html=True)
 
     filter_col1, filter_col2 = st.columns([1.2, 1.2])
     with filter_col1:
