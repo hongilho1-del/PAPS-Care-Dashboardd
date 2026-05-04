@@ -79,7 +79,7 @@ section.main {
 }
 
 .sidebar-group {
-    margin-top: 7px;
+    margin-top: 9px;
     padding: 0 10px;
 }
 
@@ -88,7 +88,7 @@ section.main {
     font-weight: 800;
     color: #344054 !important;
     letter-spacing: 0.01em;
-    margin: 8px 0 4px 0;
+    margin: 9px 0 5px 0;
     line-height: 1.3;
 }
 
@@ -263,11 +263,11 @@ section.main {
 
 [data-testid="stSidebar"] .stButton,
 [data-testid="stSidebar"] [data-testid="stButton"] {
-    margin: 0 0 2px 0 !important;
+    margin: 0 0 4px 0 !important;
 }
 
 [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
-    gap: 2px !important;
+    gap: 3px !important;
 }
 
 [data-testid="stSidebar"] [data-testid="stButton"] button p,
@@ -297,7 +297,7 @@ section.main {
     font-size: 13px;
     font-weight: 800;
     line-height: 1.28;
-    margin-bottom: 2px;
+    margin-bottom: 4px;
 }
 
 .section-space {
