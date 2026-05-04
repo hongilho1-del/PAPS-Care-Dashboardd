@@ -24,7 +24,7 @@ st.markdown(
 html, body, [class*="css"], .stApp {
     font-family: 'Noto Sans KR', sans-serif;
     background-color: #f5f6fa !important;
-    color: #1a2233;
+    color: #111827;
 }
 
 #MainMenu, footer {
@@ -90,7 +90,7 @@ html, body, [class*="css"], .stApp {
 
 .top-header .breadcrumb-nav {
     font-size: 13px;
-    color: #98a2b3;
+    color: #667085;
 }
 
 .top-header .breadcrumb-nav b {
@@ -99,12 +99,12 @@ html, body, [class*="css"], .stApp {
 
 .breadcrumb {
     font-size: 12px;
-    color: #9ca3b0;
+    color: #667085;
     margin-bottom: 6px;
 }
 
 .breadcrumb span {
-    color: #4a5568;
+    color: #344054;
     font-weight: 500;
 }
 
@@ -121,7 +121,7 @@ html, body, [class*="css"], .stApp {
     border: 1px solid #e8eaf0;
     border-radius: 12px;
     padding: 16px 18px;
-    color: #475467;
+    color: #344054;
     font-size: 13px;
     line-height: 1.8;
     margin-bottom: 18px;
@@ -179,7 +179,7 @@ html, body, [class*="css"], .stApp {
     margin: 6px 0 0 0;
     font-size: 14px;
     line-height: 1.8;
-    color: #475467;
+    color: #344054;
 }
 
 .phone-card {
@@ -212,7 +212,7 @@ html, body, [class*="css"], .stApp {
 }
 
 [data-testid="stMetricLabel"] {
-    color: #475467 !important;
+    color: #344054 !important;
     font-weight: 700 !important;
 }
 
@@ -221,31 +221,40 @@ html, body, [class*="css"], .stApp {
     font-weight: 800 !important;
 }
 
+[data-testid="stCaptionContainer"] {
+    color: #4b5563 !important;
+}
+
+[data-testid="stMarkdownContainer"] p,
+[data-testid="stMarkdownContainer"] li,
+[data-testid="stMarkdownContainer"] span {
+    color: #1f2937;
+}
+
 [data-testid="stButton"] button {
     width: 100%;
     text-align: left;
-    border-radius: 10px;
-    border: 1px solid #e7ebf1;
-    background: #ffffff;
+    border: none;
+    background: transparent;
     color: #344054;
-    padding: 0.58rem 0.8rem;
+    padding: 0.22rem 0.1rem;
     font-size: 13px;
     font-weight: 500;
+    box-shadow: none;
 }
 
 [data-testid="stButton"] button:hover {
-    border-color: #cfd6e4;
-    color: #111827;
+    border: none;
+    background: transparent;
+    color: #1d4ed8;
+    text-decoration: underline;
 }
 
 .menu-active {
-    background: #eef2ff;
-    border: 1px solid #dbe3ff;
-    color: #284bce;
-    border-radius: 10px;
-    padding: 10px 12px;
+    color: #1d4ed8;
+    padding: 0.22rem 0.1rem;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 800;
     margin-bottom: 8px;
 }
 </style>
