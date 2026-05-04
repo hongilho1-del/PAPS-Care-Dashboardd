@@ -1,90 +1,1133 @@
-심사위원들의 시선을 사로잡고 논리적 완벽함을 증명할 수 있도록, **'깔끔하고 세련된(Modern & Minimal)'** 디자인 컨셉과 **'데이터 융합'**이라는 고도화된 논리를 반영하여 1~15페이지 전체 스토리보드를 새롭게 구성했습니다. 
+import os
 
-프레젠테이션 디자인 시 여백을 충분히 활용하고, 복잡한 텍스트보다는 '인포그래픽'과 '핵심 카피' 위주로 배치하면 훨씬 세련된 결과물이 나올 것입니다.
+import pandas as pd
+import plotly.express as px
+import streamlit as st
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
 
----
 
-### 🏆 [PAPS Care+] 공모전 대상 수상용 15p 스토리보드
+st.set_page_config(
+    page_title="PAPS CARE+",
+    page_icon=":material/monitoring:",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
-#### **[Phase 1. Problem: 현상의 이면을 찌르다]**
+APP_CSS = """
+<style>
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
 
-**Page 1: 타이틀 (The Hook)**
-*   **시각 자료 (Visual):** 화면을 대각선으로 분할하는 미니멀한 레이아웃. 좌측은 땀 흘리는 학생의 역동적인 흑백 이미지, 우측은 그 움직임이 정교한 디지털 데이터(그래프)로 변환되는 컬러 그래픽.
-*   **핵심 카피:** 데이터의 융합으로 평가를 넘어 개선으로, **PAPS Care+**
-*   **발표 나레이션:** "안녕하십니까. 단순한 체력 평가를 넘어, 아이들의 실질적인 체력 개선을 이끄는 AI 맞춤형 플랫폼, PAPS Care+를 제안할 [팀명]입니다."
+:root {
+    --bg: #f2f6fb;
+    --surface: rgba(255, 255, 255, 0.9);
+    --surface-strong: #ffffff;
+    --stroke: rgba(16, 34, 53, 0.10);
+    --text: #102235;
+    --muted: #607486;
+    --navy: #0f2740;
+    --blue: #2574ea;
+    --teal: #0ea5a4;
+    --amber: #d99a25;
+    --red: #d44b57;
+    --orange: #ef8b2c;
+    --green: #1c9d74;
+    --shadow: 0 24px 60px rgba(15, 39, 64, 0.10);
+}
 
-**Page 2: 상황 분석 (정체된 공교육 체육)**
-*   **시각 자료 (Visual):** 어두운 배경 위에 강렬하게 뻗어가는 하나의 선. 매년 PAPS 예산과 측정 횟수는 늘어나지만, 학생들의 저체력(4~5등급) 비율은 정체되어 있는 모순을 보여주는 꺾은선 그래프.
-*   **핵심 카피:** 매년 반복되는 측정, 아이들의 체력은 왜 제자리일까요?
-*   **발표 나레이션:** "우리는 매년 아이들의 체력을 측정합니다. 하지만 묻고 싶습니다. 측정만으로 아이들의 건강이 좋아졌습니까? 평가는 있지만, '개선'을 위한 시스템은 부재한 것이 현실입니다."
+html, body, [class*="css"] {
+    font-family: 'Pretendard', sans-serif;
+}
 
-**Page 3: 문제 제기 (절대평가의 착각)**
-*   **시각 자료 (Visual):** 출발선에 선 두 학생의 실루엣 (키 150cm vs 180cm). 동일한 결승선을 향해 달리는 직관적인 픽토그램 위에 커다란 붉은색 물음표(?) 배치.
-*   **핵심 카피:** 절대평가의 착각: 체격의 격차가 체력의 격차로 오인되고 있습니다.
-*   **발표 나레이션:** "현장 교사와 학생들의 목소리를 들어보았습니다. 단순히 운동을 안 해서가 아닙니다. 체격이라는 신체적 조건을 무시한 획일화된 절대평가가 아이들의 운동 동기를 꺾고 있었습니다."
+.stApp {
+    background:
+        radial-gradient(circle at 0% 0%, rgba(37,116,234,0.12), transparent 28%),
+        radial-gradient(circle at 100% 0%, rgba(14,165,164,0.10), transparent 24%),
+        linear-gradient(180deg, #f8fbfe 0%, #edf3f8 100%);
+    color: var(--text);
+}
 
-**Page 4: 근본적 원인 (데이터 활용의 맹점)**
-*   **시각 자료 (Visual):** 학교와 교육청을 덮고 있는 거대한 회색 블록(Text: '평균치'). 그 거대한 장벽 아래에서 맞춤형 관리를 받지 못하는 개인의 모습.
-*   **핵심 카피:** 공공데이터의 함정: 평균값으로는 개인을 보정할 수 없습니다.
-*   **발표 나레이션:** "기존의 수많은 해결책들이 실패한 이유가 여기 있습니다. 정책과 행정의 기준이 되는 '거시적 공공데이터(평균)'로 '미시적 개인'의 체력을 정밀하게 분석하려 했기 때문입니다."
+#MainMenu, header, footer {
+    display: none;
+}
 
-#### **[Phase 2. Insight: 발상의 전환과 솔루션]**
+.block-container {
+    max-width: 1480px;
+    padding-top: 1.4rem;
+    padding-bottom: 3rem;
+}
 
-**Page 5: 핵심 인사이트 (데이터의 분리와 융합)**
-*   **시각 자료 (Visual):** 얽혀있던 데이터 뭉치가 두 갈래의 세련된 빛줄기(Track)로 깔끔하게 나뉨. 위쪽은 '학교/정책(거시)', 아래쪽은 '학생 개인(미시)'. 그리고 두 빛줄기를 연결하는 '수학적 수식(지수)'의 등장.
-*   **핵심 카피:** 섞지 말고 나누고, '지수(Exponent)'로 융합하라.
-*   **발표 나레이션:** "그래서 저희는 시각을 바꿨습니다. 학교 단위 데이터는 철저히 비교용으로 분리합니다. 단, 방대한 공공데이터에서 체격을 보정할 '수학적 지수'를 추출해내어 개인 데이터와 융합시킵니다."
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #10253d 0%, #173756 100%);
+    border-right: 1px solid rgba(255,255,255,0.08);
+}
 
-**Page 6: 시스템 구조 (PAPS Care+ IPO 전략)**
-*   **시각 자료 (Visual):** 화면 중앙을 관통하는 세련된 플로우차트. [INPUT] - [PROCESS] - [OUTPUT]이 물 흐르듯 이어지는 모던한 3D 다이어그램.
-*   **핵심 카피:** 투트랙 데이터를 행동으로 전환하는 시스템, PAPS Care+ IPO.
-*   **발표 나레이션:** "이러한 철학을 바탕으로 설계된 PAPS Care+의 Input-Process-Output 전략 구조를 상세히 보여드리겠습니다."
+[data-testid="stSidebar"] * {
+    color: #f7fbff !important;
+}
 
-#### **[Phase 3. Execution: 압도적 기술력과 산출물]**
+[data-testid="stSidebar"] .stMultiSelect div[data-baseweb="select"] > div,
+[data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"] > div,
+[data-testid="stSidebar"] .stNumberInput div[data-baseweb="input"] > div {
+    background: rgba(255,255,255,0.08) !important;
+    border: 1px solid rgba(255,255,255,0.10) !important;
+}
 
-**Page 7: [INPUT] 이원화된 데이터 수집**
-*   **시각 자료 (Visual):** 좌측 패널: 학교알리미 아이콘 (평균, 비율 통계). 우측 패널: 스마트폰 아이콘 (개인 신장, 체중, 실측 원점수). 대비되는 두 가지 데이터 소스를 깔끔하게 정렬.
-*   **핵심 카피:** 평균의 한계를 넘어, 데이터의 목적과 성격을 명확히 분리합니다.
-*   **발표 나레이션:** "Input 단계입니다. 학교알리미 기반의 공공데이터는 철저히 거시적 추세를 파악하고 보정 지수를 학습하는 데 사용하며, 개인의 신체 스펙과 측정값은 별도로 입력받습니다."
+div[data-testid="stTabs"] button {
+    border-radius: 999px;
+    padding: 10px 18px;
+    font-weight: 700;
+    color: var(--muted);
+}
 
-**Page 8: [PROCESS 1] 체격 보정 엔진 (Allometric Scaling) ⭐️ (킬링 파트)**
-*   **시각 자료 (Visual):** 반투명한 육각형 형태의 '스케일링 엔진'. 위에서 [공공데이터 기반 보정 지수]가 내려오고, 좌측에서 [개인 실측 데이터]가 들어와 엔진 속에서 빛나며 융합. 우측으로 [공정한 보정 점수]가 산출됨.
-*   **핵심 카피:** 거시적 지수와 미시적 데이터의 융합, 진정한 공정성의 완성.
-*   **발표 나레이션:** "심사위원 여러분, 이 부분이 핵심입니다. 우리는 공공데이터를 단순 통계로 쓰지 않습니다. 공공데이터에서 추출된 '알로메트릭 보정 지수'를 학생 개인의 데이터에 대입하여 체격을 수학적으로 통제합니다. 데이터 융합이 만들어낸 진정한 공정성입니다."
+div[data-testid="stTabs"] button[aria-selected="true"] {
+    background: linear-gradient(135deg, #16324f 0%, #2574ea 100%);
+    color: white;
+}
 
-**Page 9: [PROCESS 2] AI 군집화 및 패턴 학습**
-*   **시각 자료 (Visual):** 검은 배경 위 수천 개의 데이터 점(학생)들이 밤하늘의 별자리처럼 군집(Cluster)을 이룸. 그중 체력이 향상된 '성공 경로(Path)'가 황금색 궤적으로 강조됨.
-*   **핵심 카피:** "나와 체격이 비슷한 친구는 어떻게 1등급이 되었을까?"
-*   **발표 나레이션:** "이렇게 보정된 정확한 체력 수준을 바탕으로 AI가 작동합니다. 사용자와 유사한 체격 집단을 군집화하고, 그 안에서 가장 성공적인 체력 향상 패턴을 머신러닝으로 학습합니다."
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding: 8px 2px;
+}
 
-**Page 10: [OUTPUT 1] 교육행정 통합 대시보드 (Track 2)**
-*   **시각 자료 (Visual):** 심플하고 세련된 Web 대시보드 UI 목업. 지도 위에 취약 체력 종목이 히트맵(Heatmap) 형태로 직관적으로 시각화되어 있음.
-*   **핵심 카피:** 감(感)이 아닌 '데이터'로 결정하는 스마트 체육 행정.
-*   **발표 나레이션:** "최종 산출물인 Output 단계입니다. 학교와 교육청에는 대시보드를 제공합니다. 어떤 지역, 어떤 학교에 체육 강사와 예산을 집중 투입해야 할지 객관적인 정책 의사결정(DSS)을 돕습니다."
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
 
-**Page 11: [OUTPUT 2] 개인 맞춤형 AI 처방 (Track 1)**
-*   **시각 자료 (Visual):** 모바일 앱 UI 목업. 학생의 보정 체력 등급 리포트 아래에 세련된 디자인의 'FITT(빈도, 강도, 시간, 유형) 4주 맞춤 인터벌 플랜' 카드가 떠 있음.
-*   **핵심 카피:** 성적표 발급을 넘어, 나만의 'AI 퍼스널 트레이너'를 제공합니다.
-*   **발표 나레이션:** "학생과 학부모에게는 단순한 점수 통보가 아닌, 당장 오늘부터 실천할 수 있는 4주 단위의 정밀한 운동 처방을 모바일로 제공합니다."
+.brand-badge {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #14304c 0%, #2677f0 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 800;
+    box-shadow: 0 16px 35px rgba(20, 48, 76, 0.26);
+}
 
-#### **[Phase 4. Impact: 변화될 미래]**
+.brand-copy h1 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+}
 
-**Page 12: 시스템 생태계 (선순환 구조)**
-*   **시각 자료 (Visual):** 뫼비우스의 띠(무한대 ∞) 형태의 심플한 라인 아트. 교사(정책) - 학생(개선) - AI(분석)가 끊임없이 순환하며 성장하는 이미지.
-*   **핵심 카피:** 진단 - 분석 - 처방 - 개선이 반복되는 공교육 체육의 선순환.
-*   **발표 나레이션:** "PAPS Care+는 일회성 앱이 아닙니다. 학생이 운동을 실천하면 다시 데이터가 쌓이고, AI는 더 정교해지며, 교육 정책은 더욱 스마트해지는 완벽한 선순환 생태계입니다."
+.brand-copy p {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+}
 
-**Page 13: 서비스 확장성 (Business Roadmap)**
-*   **시각 자료 (Visual):** 화면 하단을 가로지르는 심플한 타임라인 화살표. [STEP 1] 강원도 시범 적용 ➔ [STEP 2] 전국 NEIS 데이터 연동 ➔ [STEP 3] B2B 보건소 및 유소년 스포츠클럽 확장.
-*   **핵심 카피:** 강원도를 시작으로 대한민국 유소년 체육 데이터의 표준이 됩니다.
-*   **발표 나레이션:** "강원도 지역 시범 운영을 시작으로, 향후 NEIS(나이스) 연동 및 보건소 연계 모델까지 확장 가능한 폭발적인 잠재력을 지니고 있습니다."
+.status-chip {
+    border-radius: 999px;
+    padding: 10px 14px;
+    background: rgba(37, 116, 234, 0.08);
+    border: 1px solid rgba(37, 116, 234, 0.12);
+    color: #2759b2;
+    font-size: 12px;
+    font-weight: 700;
+}
 
-**Page 14: 최종 기대 효과**
-*   **시각 자료 (Visual):** 깔끔한 표 또는 3단 인포그래픽. 학생 (공정한 평가와 성취감) / 교사 (행정 업무 경감 및 맞춤 지도) / 교육청 (예산 운영의 효율성 극대화).
-*   **핵심 카피:** 단순한 기술의 도입이 아닌, 학교 현장 패러다임의 혁신.
-*   **발표 나레이션:** "학생은 공정한 평가를 통해 운동의 즐거움을 찾고, 교사는 데이터 기반의 맞춤 지도가 가능해지며, 국가는 효율적으로 체육 예산을 운영하게 될 것입니다."
+.brand-mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.14);
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.92);
+}
 
-**Page 15: 결론 (엔딩 - The Punchline)**
-*   **시각 자료 (Visual):** 육상 트랙의 출발선(Start Line)에 서포트 블록을 딛고 비상할 준비를 하는 육상 선수의 발과 트랙의 클로즈업 샷 (텍스트를 돋보이게 하는 어두운 필터 적용).
-*   **핵심 카피:** PAPS는 결승선이 아니라, 개선을 향한 '새로운 출발선'이어야 합니다.
-*   **발표 나레이션:** "평가는 끝이 아니라 시작이어야 합니다. PAPS Care+가 우리 아이들을 위한 새롭고 공정한 출발선을 그리겠습니다. 감사합니다."
+.hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 34px;
+    padding: 40px;
+    background:
+        radial-gradient(circle at 80% 20%, rgba(255,255,255,0.16), transparent 18%),
+        linear-gradient(130deg, #0f2740 0%, #153e67 50%, #2680b7 100%);
+    color: white;
+    box-shadow: 0 30px 80px rgba(15, 39, 64, 0.22);
+    margin-bottom: 22px;
+}
+
+.hero::before {
+    content: "";
+    position: absolute;
+    right: -100px;
+    bottom: -100px;
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(217,154,37,0.32) 0%, rgba(217,154,37,0.02) 70%);
+}
+
+.hero-grid {
+    display: grid;
+    grid-template-columns: 1.55fr 0.85fr;
+    gap: 20px;
+    align-items: end;
+}
+
+.eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.16);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.hero h2 {
+    margin: 18px 0 12px;
+    font-size: 44px;
+    line-height: 1.08;
+    letter-spacing: -0.04em;
+}
+
+.hero p {
+    margin: 0;
+    max-width: 760px;
+    color: rgba(255,255,255,0.86);
+    font-size: 16px;
+    line-height: 1.75;
+}
+
+.hero-subtitle {
+    margin-top: 10px;
+    font-size: 18px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.9);
+}
+
+.hero-notice {
+    margin-top: 18px;
+    padding: 16px 18px;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.14);
+    color: rgba(255,255,255,0.94);
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+.hero-highlight {
+    margin-top: 18px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.hero-stat {
+    padding: 16px 18px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.12);
+    backdrop-filter: blur(8px);
+}
+
+.hero-stat-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.70);
+    font-weight: 700;
+}
+
+.hero-stat-value {
+    margin-top: 6px;
+    font-size: 20px;
+    font-weight: 800;
+    color: white;
+}
+
+.hero-aside {
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 26px;
+    padding: 22px;
+    backdrop-filter: blur(10px);
+}
+
+.hero-aside h3 {
+    margin: 0 0 12px;
+    font-size: 16px;
+}
+
+.hero-aside ul {
+    margin: 0;
+    padding-left: 18px;
+    color: rgba(255,255,255,0.82);
+    line-height: 1.8;
+    font-size: 13px;
+}
+
+.shell {
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.55);
+    border-radius: 30px;
+    padding: 22px;
+    box-shadow: var(--shadow);
+}
+
+.shell-dark {
+    background: linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(245,249,253,0.96) 100%);
+}
+
+.panel-title {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+}
+
+.panel-copy {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.65;
+}
+
+.mini-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-weight: 800;
+    margin-bottom: 8px;
+}
+
+.summary-card {
+    background: rgba(255,255,255,0.88);
+    border: 1px solid var(--stroke);
+    border-radius: 24px;
+    padding: 22px;
+    min-height: 152px;
+    box-shadow: 0 16px 36px rgba(15, 39, 64, 0.07);
+}
+
+.summary-value {
+    font-size: 38px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    color: var(--text);
+    margin-top: 6px;
+}
+
+.summary-help {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.65;
+    margin-top: 10px;
+}
+
+.note-card {
+    background: #f7fafc;
+    border: 1px solid var(--stroke);
+    border-radius: 22px;
+    padding: 18px;
+}
+
+.note-card strong {
+    color: var(--text);
+}
+
+.report-card {
+    background: rgba(255,255,255,0.94);
+    border: 1px solid var(--stroke);
+    border-radius: 24px;
+    padding: 22px;
+    box-shadow: 0 18px 40px rgba(15, 39, 64, 0.08);
+    height: 100%;
+}
+
+.report-tag {
+    display: inline-flex;
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 800;
+    margin-bottom: 14px;
+}
+
+.tag-red { background: rgba(212,75,87,0.14); color: #b22d3c; }
+.tag-orange { background: rgba(239,139,44,0.16); color: #b96215; }
+.tag-green { background: rgba(28,157,116,0.14); color: #0f7658; }
+.tag-blue { background: rgba(37,116,234,0.14); color: #1f56ba; }
+
+.report-card h4 {
+    margin: 0 0 8px;
+    font-size: 18px;
+    font-weight: 800;
+}
+
+.report-stat {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.7;
+    margin-bottom: 14px;
+}
+
+.report-section {
+    margin-top: 14px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text);
+}
+
+.report-copy {
+    color: #314556;
+    font-size: 14px;
+    line-height: 1.8;
+    margin-top: 8px;
+}
+
+.student-shell {
+    background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(246,250,255,0.95) 100%);
+    border: 1px solid var(--stroke);
+    border-radius: 30px;
+    padding: 24px;
+    box-shadow: var(--shadow);
+}
+
+.student-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(37,116,234,0.08);
+    border: 1px solid rgba(37,116,234,0.12);
+    color: #2759b2;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.student-title {
+    margin: 14px 0 8px;
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--text);
+}
+
+.student-copy {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.75;
+    margin-bottom: 18px;
+}
+
+.plan-card {
+    background: rgba(255,255,255,0.96);
+    border: 1px solid var(--stroke);
+    border-radius: 24px;
+    padding: 18px;
+    box-shadow: 0 14px 30px rgba(15, 39, 64, 0.08);
+    height: 100%;
+}
+
+.plan-week {
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--blue);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.plan-title {
+    margin: 8px 0 12px;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text);
+}
+
+.plan-item {
+    margin-top: 8px;
+    color: #314556;
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+@media (max-width: 1100px) {
+    .hero-grid {
+        grid-template-columns: 1fr;
+    }
+    .hero-highlight {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+"""
+st.markdown(APP_CSS, unsafe_allow_html=True)
+
+
+@st.cache_data
+def load_raw_data():
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    data_dir = os.path.join(base_dir, "data")
+    candidates = [
+        os.path.join(data_dir, "PAPS_Final_Master (5).xlsx"),
+        os.path.join(data_dir, "PAPS_Combined_Data.xlsx"),
+    ]
+    file_path = next((path for path in candidates if os.path.exists(path)), None)
+
+    if file_path is None:
+        searched = ", ".join(candidates)
+        return None, {}, f"데이터 파일을 찾을 수 없습니다. 확인 경로: {searched}"
+
+    try:
+        df = pd.read_excel(file_path)
+    except Exception as exc:
+        return None, {}, f"엑셀 파일을 읽는 중 오류가 발생했습니다: {exc}"
+
+    df.columns = df.columns.map(lambda col: str(col).strip())
+
+    def find_col(keywords):
+        for column in df.columns:
+            name = str(column)
+            if any(keyword in name for keyword in keywords):
+                return column
+        return None
+
+    target_map = {
+        "BMI": find_col(["BMI", "비만", "체질량"]),
+        "심폐지구력": find_col(["왕복", "오래달리기", "심폐", "셔틀런"]),
+        "근력/근지구력": find_col(["악력", "팔굽혀", "말아올리기"]),
+        "유연성": find_col(["앉아윗몸", "유연성"]),
+        "순발력": find_col(["제자리멀리", "순발력"]),
+    }
+    valid_targets = {name: column for name, column in target_map.items() if column}
+
+    if len(valid_targets) < 2:
+        return None, {}, "군집 분석을 위해서는 최소 2개의 측정 지표가 필요합니다."
+
+    for column in valid_targets.values():
+        cleaned = df[column].astype(str).str.replace(r"[^0-9.\-]", "", regex=True)
+        df[column] = pd.to_numeric(cleaned, errors="coerce")
+
+    def find_first(keywords, default_series):
+        found = find_col(keywords)
+        return df[found].astype(str).str.strip() if found else default_series
+
+    school_fallback = df.iloc[:, 0].astype(str).str.strip()
+    df["순수학교명"] = find_first(["추출학교명", "학교명"], school_fallback)
+
+    year_col = find_col(["연도"])
+    df["연도"] = (
+        pd.to_numeric(df[year_col], errors="coerce").fillna(0).astype(int)
+        if year_col
+        else 0
+    )
+    df["시군"] = find_first(["시군"], pd.Series(["미상"] * len(df), index=df.index))
+    df["성별"] = find_first(["성별", "남여"], pd.Series(["전체"] * len(df), index=df.index))
+    df["학년"] = find_first(["학년"], pd.Series(["전체"] * len(df), index=df.index))
+    df = df.replace({"": pd.NA, "nan": pd.NA, "None": pd.NA})
+
+    return df, {"valid": valid_targets, "file_path": file_path}, None
+
+
+def apply_filters(df, years, regions, grades, genders, schools):
+    filtered_df = df.copy()
+    if years:
+        filtered_df = filtered_df[filtered_df["연도"].isin(years)]
+    if regions:
+        filtered_df = filtered_df[filtered_df["시군"].isin(regions)]
+    if grades:
+        filtered_df = filtered_df[filtered_df["학년"].isin(grades)]
+    if genders:
+        filtered_df = filtered_df[filtered_df["성별"].isin(genders)]
+    if schools:
+        filtered_df = filtered_df[filtered_df["순수학교명"].isin(schools)]
+    return filtered_df
+
+
+def build_cluster_labels(cluster_summary, x_label):
+    ordered = cluster_summary.sort_values("score", ascending=(x_label == "BMI")).index.tolist()
+    label_sets = {
+        2: ["관리 필요군", "건강 양호군"],
+        3: ["고위험군", "일반군", "우수군"],
+        4: ["고위험군", "중점관리군", "일반군", "우수군"],
+    }
+    names = label_sets[len(ordered)]
+    return {cluster_id: names[index] for index, cluster_id in enumerate(ordered)}
+
+
+def get_group_style(label):
+    if "고위험" in label or "관리 필요" in label:
+        return "tag-red"
+    if "중점관리" in label:
+        return "tag-orange"
+    if "일반" in label:
+        return "tag-green"
+    return "tag-blue"
+
+
+def get_prescription_content(label):
+    if "고위험" in label or "관리 필요" in label:
+        return (
+            "기초 체력 회복 중심",
+            "저강도 유산소와 기초 근력 루틴으로 활동량을 안정적으로 회복하고 생활 속 움직임을 늘리는 방향이 적합합니다.",
+            "집중 지원 프로그램",
+            "건강체력교실, 영양 상담, 가정 연계형 생활습관 피드백을 함께 운영하는 구성이 효과적입니다.",
+        )
+    if "중점관리" in label:
+        return (
+            "참여도 강화형 성장",
+            "뉴스포츠와 순환운동을 활용해 흥미를 유지하면서 심폐지구력과 근지구력을 단계적으로 끌어올립니다.",
+            "방과 후 성장 프로그램",
+            "팀 스포츠 기반 참여형 프로그램과 주간 목표 피드백을 결합해 운동 지속성을 높입니다.",
+        )
+    if "일반" in label:
+        return (
+            "균형 유지형 관리",
+            "근력, 유연성, 지구력의 밸런스를 유지할 수 있도록 주간 루틴과 회복 스트레칭을 함께 운영합니다.",
+            "자율 습관 프로그램",
+            "1인 1운동, 기록 관리, 선택형 종목 체험을 통해 생활체육 습관을 안정적으로 정착시킵니다.",
+        )
+    return (
+        "심화 성장형 관리",
+        "인터벌 트레이닝과 종목 특화 루틴을 통해 상위 체력군의 강점을 유지하고 한 단계 더 발전시키는 전략입니다.",
+        "리더십 연계 프로그램",
+        "학생 스포츠 리더, 멘토링, 지역 연계 심화 프로그램으로 동기와 역할을 확장할 수 있습니다.",
+    )
+
+
+def format_selection(values):
+    if not values:
+        return "전체"
+    values = [str(value) for value in values]
+    return ", ".join(values[:2]) + (f" 외 {len(values) - 2}개" if len(values) > 2 else "")
+
+
+def build_student_plan(label):
+    plans = {
+        "고위험군": [
+            {"week": "1주차", "title": "적응 시작", "freq": "주 3회", "intensity": "매우 가볍게", "time": "20분", "type": "빠르게 걷기 + 전신 스트레칭"},
+            {"week": "2주차", "title": "기초 체력 회복", "freq": "주 3회", "intensity": "가볍게", "time": "25분", "type": "걷기 + 스쿼트 2세트 + 코어 5분"},
+            {"week": "3주차", "title": "지구력 확보", "freq": "주 4회", "intensity": "가볍게", "time": "30분", "type": "인터벌 걷기/가벼운 조깅 + 하체 근력"},
+            {"week": "4주차", "title": "습관 정착", "freq": "주 4회", "intensity": "보통 이하", "time": "35분", "type": "걷기·조깅 혼합 + 복합 맨몸운동"},
+        ],
+        "중점관리군": [
+            {"week": "1주차", "title": "활동량 늘리기", "freq": "주 3회", "intensity": "가볍게", "time": "25분", "type": "걷기/조깅 혼합 + 전신 스트레칭"},
+            {"week": "2주차", "title": "심폐 적응", "freq": "주 4회", "intensity": "보통 이하", "time": "30분", "type": "셔틀런 리듬훈련 + 하체 근력"},
+            {"week": "3주차", "title": "근지구력 강화", "freq": "주 4회", "intensity": "보통", "time": "35분", "type": "순환운동 + 코어 + 점핑드릴"},
+            {"week": "4주차", "title": "지속성 확보", "freq": "주 4회", "intensity": "보통", "time": "40분", "type": "조깅 + 서킷트레이닝 + 유연성 루틴"},
+        ],
+        "일반군": [
+            {"week": "1주차", "title": "균형 유지", "freq": "주 4회", "intensity": "보통", "time": "30분", "type": "조깅 + 근력 2종 + 스트레칭"},
+            {"week": "2주차", "title": "전신 밸런스", "freq": "주 4회", "intensity": "보통", "time": "35분", "type": "인터벌 달리기 + 맨몸 서킷"},
+            {"week": "3주차", "title": "기록 향상", "freq": "주 4회", "intensity": "보통 이상", "time": "40분", "type": "셔틀런 훈련 + 코어 강화"},
+            {"week": "4주차", "title": "자기주도 운동", "freq": "주 5회", "intensity": "보통 이상", "time": "40분", "type": "조깅 + 민첩성 드릴 + 회복 스트레칭"},
+        ],
+        "우수군": [
+            {"week": "1주차", "title": "상위권 유지", "freq": "주 4회", "intensity": "보통 이상", "time": "40분", "type": "인터벌 러닝 + 코어 + 하체 강화"},
+            {"week": "2주차", "title": "심화 훈련", "freq": "주 5회", "intensity": "높게", "time": "45분", "type": "셔틀런 고강도 세션 + 서킷"},
+            {"week": "3주차", "title": "경쟁력 강화", "freq": "주 5회", "intensity": "높게", "time": "45분", "type": "민첩성·순발력 드릴 + 근지구력"},
+            {"week": "4주차", "title": "리더십 단계", "freq": "주 5회", "intensity": "높게", "time": "50분", "type": "인터벌 + 기술 훈련 + 자기기록 관리"},
+        ],
+    }
+    return plans.get(label, plans["일반군"])
+
+
+def classify_student_profile(height_cm, weight_kg, shuttle_runs):
+    height_m = height_cm / 100
+    bmi = weight_kg / (height_m ** 2)
+    allometric_index = shuttle_runs / (weight_kg ** 0.33)
+
+    centroids = pd.DataFrame(
+        [
+            {"label": "고위험군", "bmi": 29.0, "allometric": 4.6},
+            {"label": "중점관리군", "bmi": 25.0, "allometric": 5.8},
+            {"label": "일반군", "bmi": 22.0, "allometric": 7.0},
+            {"label": "우수군", "bmi": 19.5, "allometric": 8.4},
+        ]
+    )
+    distances = (
+        (centroids["bmi"] - bmi) ** 2 + ((centroids["allometric"] - allometric_index) * 1.2) ** 2
+    ) ** 0.5
+    matched = centroids.loc[distances.idxmin()]
+
+    summaries = {
+        "고위험군": "체중 관리와 심폐지구력 회복을 먼저 잡아야 하는 단계입니다.",
+        "중점관리군": "활동량은 조금 더 늘리고, 규칙적인 루틴으로 체력 반등이 가능한 단계입니다.",
+        "일반군": "전반적인 균형은 양호하며 기록 향상을 위한 루틴이 잘 맞습니다.",
+        "우수군": "상위 체력군으로 분류되며, 심화 훈련과 리더십 활동까지 확장할 수 있습니다.",
+    }
+
+    return {
+        "bmi": bmi,
+        "allometric_index": allometric_index,
+        "cluster_label": matched["label"],
+        "summary": summaries[matched["label"]],
+        "plan": build_student_plan(matched["label"]),
+    }
+
+
+def render_admin_view(df, meta):
+    st.markdown(
+        """
+        <div class="hero">
+            <div class="hero-grid">
+                <div>
+                    <div class="eyebrow">PAPS CARE+ ANALYTICS</div>
+                    <div class="brand-mark">PAPS CARE+ 맞춤형 체력 관리 시스템</div>
+                    <h2>PAPS CARE+</h2>
+                    <div class="hero-subtitle">강원특별자치도 학교 데이터 AI 분석 시스템</div>
+                    <div class="hero-notice">* 본 시스템은 <b>학교알리미</b> 공시 데이터를 기반으로 학생들의 건강체력평가(PAPS)를 AI로 분석한 결과를 제공합니다.</div>
+                    <p style="margin-top:18px;">
+                        학교별 체력 현황을 단순 나열이 아니라 분석 가능한 정보로 전환합니다.
+                        위험군 비중, 집단별 분포, 맞춤형 처방 방향을 한 화면에서 보고서처럼 확인할 수 있습니다.
+                    </p>
+                    <div class="hero-highlight">
+                        <div class="hero-stat">
+                            <div class="hero-stat-label">Core Value</div>
+                            <div class="hero-stat-value">AI 군집 분석</div>
+                        </div>
+                        <div class="hero-stat">
+                            <div class="hero-stat-label">Output</div>
+                            <div class="hero-stat-value">맞춤형 처방 리포트</div>
+                        </div>
+                        <div class="hero-stat">
+                            <div class="hero-stat-label">View</div>
+                            <div class="hero-stat-value">기관형 시각 대시보드</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="hero-aside">
+                    <h3>PAPS CARE+ 제공 내용</h3>
+                    <ul>
+                        <li>학교 체력 데이터의 분포와 위험 신호를 직관적으로 확인</li>
+                        <li>두 개 지표 조합 기준의 AI 군집 분석 결과 제공</li>
+                        <li>집단별 운동 처방과 교육 프로그램 추천 제시</li>
+                        <li>보고용 화면에 맞춘 요약 카드와 시각 리포트 구성</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    with st.sidebar:
+        st.markdown("## 데이터 필터")
+        st.caption("선택한 조건을 기준으로 차트와 리포트가 다시 계산됩니다.")
+
+        s_year = st.multiselect("연도", sorted(df["연도"].dropna().unique()))
+        s_region = st.multiselect("시·군", sorted(df["시군"].dropna().unique()))
+        s_grade = st.multiselect("학년", sorted(df["학년"].dropna().unique()))
+        s_gender = st.multiselect("성별", sorted(df["성별"].dropna().unique()))
+
+        school_base_df = apply_filters(df, s_year, s_region, s_grade, s_gender, [])
+        school_options = sorted(school_base_df["순수학교명"].dropna().unique())
+        s_school = st.multiselect("학교", school_options)
+
+        st.markdown("---")
+        st.markdown("## 분석 설정")
+        metric_options = list(meta["valid"].keys())
+        x_ax = st.selectbox("수평축", metric_options, index=0)
+        y_ax = st.selectbox("수직축", metric_options, index=1 if len(metric_options) > 1 else 0)
+        n_cl = st.slider("군집 수", 2, 4, 3)
+
+    st.markdown('<div class="shell shell-dark">', unsafe_allow_html=True)
+    st.markdown('<h3 class="panel-title">현재 분석 기준</h3>', unsafe_allow_html=True)
+    st.markdown(
+        f'<p class="panel-copy">연도 {format_selection(s_year)} · 지역 {format_selection(s_region)} · 학년 {format_selection(s_grade)} · 성별 {format_selection(s_gender)} · 학교 {format_selection(s_school)}</p>',
+        unsafe_allow_html=True,
+    )
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    filtered_df = apply_filters(df, s_year, s_region, s_grade, s_gender, s_school)
+    if filtered_df.empty:
+        st.warning("선택한 조건에 맞는 데이터가 없습니다. 필터를 조정해 주세요.")
+        return
+
+    group_cols = ["순수학교명", "연도", "시군", "학년", "성별"]
+    agg_map = {column: "mean" for column in meta["valid"].values()}
+    df_agg = filtered_df.groupby(group_cols, dropna=False).agg(agg_map).reset_index()
+
+    raw_x = meta["valid"][x_ax]
+    raw_y = meta["valid"][y_ax]
+    cluster_source = df_agg.dropna(subset=[raw_x, raw_y]).copy()
+
+    if len(cluster_source) < n_cl:
+        st.warning(f"현재 조건에서는 군집 {n_cl}개를 만들 데이터가 부족합니다. 필터를 조금 넓혀 주세요.")
+        return
+
+    scaled_points = StandardScaler().fit_transform(cluster_source[[raw_x, raw_y]])
+    kmeans = KMeans(n_clusters=n_cl, random_state=42, n_init=10)
+    cluster_source["Cluster"] = kmeans.fit_predict(scaled_points)
+    cluster_summary = cluster_source.groupby("Cluster")[[raw_x, raw_y]].mean()
+    cluster_summary["score"] = cluster_summary.mean(axis=1)
+    cluster_labels = build_cluster_labels(cluster_summary, x_ax)
+    cluster_source["유형"] = cluster_source["Cluster"].map(cluster_labels)
+
+    school_count = int(cluster_source["순수학교명"].nunique())
+    region_count = int(cluster_source["시군"].nunique())
+    dominant_group = cluster_source["유형"].value_counts().idxmax()
+    dominant_share = round((cluster_source["유형"].value_counts().max() / len(cluster_source)) * 100, 1)
+
+    sub_tabs = st.tabs(["종합 현황", "군집 분포 맵", "맞춤형 처방"])
+
+    with sub_tabs[0]:
+        st.markdown("### 종합 현황")
+        st.markdown("현재 선택한 분석 조건을 기준으로 핵심 수치와 집단 분포를 먼저 확인합니다.")
+
+        kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+        with kpi1:
+            st.markdown(
+                f"""
+                <div class="summary-card">
+                    <div class="mini-label">Schools</div>
+                    <div class="summary-value">{school_count}</div>
+                    <div class="summary-help">현재 분석 범위에 포함된 학교 수입니다.</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with kpi2:
+            st.markdown(
+                f"""
+                <div class="summary-card">
+                    <div class="mini-label">Regions</div>
+                    <div class="summary-value">{region_count}</div>
+                    <div class="summary-help">현재 선택된 시·군 범위입니다.</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with kpi3:
+            st.markdown(
+                f"""
+                <div class="summary-card">
+                    <div class="mini-label">Top Group</div>
+                    <div class="summary-value" style="font-size:30px;">{dominant_group}</div>
+                    <div class="summary-help">가장 높은 비중을 차지하는 분석 집단입니다.</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with kpi4:
+            st.markdown(
+                f"""
+                <div class="summary-card">
+                    <div class="mini-label">Share</div>
+                    <div class="summary-value">{dominant_share}%</div>
+                    <div class="summary-help">최대 비중 집단의 구성 비율입니다.</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        left, right = st.columns([1.35, 1])
+        with left:
+            st.markdown('<div class="shell">', unsafe_allow_html=True)
+            st.markdown('<h3 class="panel-title">집단 분포 브리프</h3>', unsafe_allow_html=True)
+            st.markdown(
+                '<p class="panel-copy">현재 조건 안에서 어떤 집단이 얼마나 많이 분포하는지 빠르게 읽을 수 있습니다.</p>',
+                unsafe_allow_html=True,
+            )
+            share_df = (
+                cluster_source["유형"]
+                .value_counts(normalize=True)
+                .mul(100)
+                .round(1)
+                .rename_axis("유형")
+                .reset_index(name="비중")
+            )
+            bar_fig = px.bar(
+                share_df,
+                x="비중",
+                y="유형",
+                orientation="h",
+                color="유형",
+                text="비중",
+                color_discrete_map={
+                    "관리 필요군": "#d44b57",
+                    "고위험군": "#d44b57",
+                    "중점관리군": "#ef8b2c",
+                    "일반군": "#1c9d74",
+                    "우수군": "#2574ea",
+                    "건강 양호군": "#2574ea",
+                },
+            )
+            bar_fig.update_traces(texttemplate="%{text}%", textposition="outside")
+            bar_fig.update_layout(
+                height=360,
+                margin=dict(t=10, b=10, l=10, r=10),
+                plot_bgcolor="rgba(0,0,0,0)",
+                paper_bgcolor="rgba(0,0,0,0)",
+                showlegend=False,
+                xaxis=dict(showgrid=True, gridcolor="rgba(16,34,53,0.08)", zeroline=False),
+                yaxis=dict(showgrid=False),
+            )
+            st.plotly_chart(bar_fig, use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        with right:
+            st.markdown('<div class="shell">', unsafe_allow_html=True)
+            st.markdown('<h3 class="panel-title">분석 해석 메모</h3>', unsafe_allow_html=True)
+            st.markdown(
+                f"""
+                <div class="note-card">
+                    <strong>현재 분석 조합</strong><br>
+                    {x_ax}와 {y_ax}를 기준으로 {n_cl}개 군집을 생성했습니다.
+                </div>
+                <br>
+                <div class="note-card">
+                    <strong>해석 기준</strong><br>
+                    필터된 데이터만 사용해 군집을 다시 계산하므로, 현재 화면은 전체 평균이 아니라 선택된 집단의 상대 비교 결과입니다.
+                </div>
+                <br>
+                <div class="note-card">
+                    <strong>주의</strong><br>
+                    BMI는 높은 값이 항상 좋은 것으로 읽히지 않도록 별도 방향성을 적용했습니다.
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            st.markdown("</div>", unsafe_allow_html=True)
+
+    with sub_tabs[1]:
+        st.markdown("### 군집 분포 맵")
+        st.markdown("학교별 위치와 집단 분포를 한 화면에서 읽기 쉽도록 시각화했습니다.")
+
+        st.markdown('<div class="shell">', unsafe_allow_html=True)
+        fig = px.scatter(
+            cluster_source,
+            x=raw_x,
+            y=raw_y,
+            color="유형",
+            text="순수학교명",
+            hover_data={"연도": True, "시군": True, "학년": True, "성별": True},
+            labels={raw_x: x_ax, raw_y: y_ax, "유형": "집단"},
+            color_discrete_map={
+                "관리 필요군": "#d44b57",
+                "고위험군": "#d44b57",
+                "중점관리군": "#ef8b2c",
+                "일반군": "#1c9d74",
+                "우수군": "#2574ea",
+                "건강 양호군": "#2574ea",
+            },
+        )
+        fig.update_traces(
+            marker=dict(size=17, opacity=0.88, line=dict(width=1.2, color="white")),
+            textposition="top center",
+            textfont=dict(size=10, color="#254258"),
+        )
+        fig.update_layout(
+            height=620,
+            margin=dict(t=10, b=10, l=10, r=10),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.03,
+                xanchor="right",
+                x=1,
+                bgcolor="rgba(255,255,255,0.72)",
+            ),
+            xaxis=dict(showgrid=True, gridcolor="rgba(16,34,53,0.08)", zeroline=False),
+            yaxis=dict(showgrid=True, gridcolor="rgba(16,34,53,0.08)", zeroline=False),
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with sub_tabs[2]:
+        st.markdown("### 맞춤형 처방")
+        st.markdown("표 대신 카드형 리포트 형식으로 집단별 운동 처방과 교육 프로그램 방향을 정리했습니다.")
+
+        row_order = ["고위험군", "관리 필요군", "중점관리군", "일반군", "우수군", "건강 양호군"]
+        visible_rows = [label for label in row_order if label in cluster_source["유형"].unique()]
+
+        for start in range(0, len(visible_rows), 2):
+            cols = st.columns(2)
+            for col, label in zip(cols, visible_rows[start:start + 2]):
+                tag_class = get_group_style(label)
+                title_1, body_1, title_2, body_2 = get_prescription_content(label)
+                subset = cluster_source[cluster_source["유형"] == label]
+                with col:
+                    st.markdown(
+                        f"""
+                        <div class="report-card">
+                            <span class="report-tag {tag_class}">{label}</span>
+                            <h4>{label} 맞춤 전략</h4>
+                            <div class="report-stat">
+                                학교 수 {len(subset)} · {x_ax} 평균 {subset[raw_x].mean():.1f} · {y_ax} 평균 {subset[raw_y].mean():.1f}
+                            </div>
+                            <div class="report-section">운동 처방</div>
+                            <div class="report-copy"><strong>{title_1}</strong><br>{body_1}</div>
+                            <div class="report-section">교육 프로그램</div>
+                            <div class="report-copy"><strong>{title_2}</strong><br>{body_2}</div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+
+def render_student_view():
+    st.markdown(
+        """
+        <div class="student-shell">
+            <div class="student-badge">학생 개인 FITT 시뮬레이션</div>
+            <div class="student-title">나의 PAPS CARE+ 맞춤 처방</div>
+            <div class="student-copy">
+                심사위원이 직접 가상의 키, 몸무게, 셔틀런 횟수를 입력하면 즉시 알로메트릭 스케일링을 적용해
+                개인 체력군을 시뮬레이션하고 4주 FITT 처방 카드를 보여줍니다.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        height_cm = st.number_input("키 (cm)", min_value=120, max_value=210, value=165, step=1)
+    with col2:
+        weight_kg = st.number_input("몸무게 (kg)", min_value=25, max_value=150, value=58, step=1)
+    with col3:
+        shuttle_runs = st.number_input("셔틀런 횟수", min_value=1, max_value=200, value=42, step=1)
+
+    student_result = classify_student_profile(height_cm, weight_kg, shuttle_runs)
+    bmi = student_result["bmi"]
+    allometric_index = student_result["allometric_index"]
+    cluster_label = student_result["cluster_label"]
+    tag_class = get_group_style(cluster_label)
+
+    stat1, stat2, stat3 = st.columns(3)
+    with stat1:
+        st.markdown(
+            f"""
+            <div class="summary-card">
+                <div class="mini-label">BMI</div>
+                <div class="summary-value">{bmi:.1f}</div>
+                <div class="summary-help">키와 몸무게 기반 개인 체질량지수입니다.</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with stat2:
+        st.markdown(
+            f"""
+            <div class="summary-card">
+                <div class="mini-label">Allometric Shuttle Index</div>
+                <div class="summary-value">{allometric_index:.2f}</div>
+                <div class="summary-help">셔틀런 기록을 체중 보정한 심폐 지표입니다.</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with stat3:
+        st.markdown(
+            f"""
+            <div class="summary-card">
+                <div class="mini-label">Cluster</div>
+                <div class="summary-value" style="font-size:30px;">{cluster_label}</div>
+                <div class="summary-help">데모용 학생 개인 체력군 분류 결과입니다.</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    left, right = st.columns([0.95, 1.05])
+    with left:
+        st.markdown(
+            f"""
+            <div class="report-card">
+                <span class="report-tag {tag_class}">{cluster_label}</span>
+                <h4>나의 현재 상태</h4>
+                <div class="report-copy">{student_result["summary"]}</div>
+                <div class="report-section">FITT 처방 핵심</div>
+                <div class="report-copy">
+                    Frequency는 주당 운동 빈도, Intensity는 운동 강도, Time은 1회 운동 시간,
+                    Type은 실제 수행 종목을 뜻합니다. 아래 4주 계획은 단계적으로 강도가 올라가도록 설계했습니다.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with right:
+        st.markdown(
+            """
+            <div class="report-card">
+                <h4>시뮬레이션 안내</h4>
+                <div class="report-copy">
+                    학생 개인 뷰는 발표용 데모 화면입니다. 입력값이 바뀌면 즉시 체력군과 4주 플랜이 바뀌며,
+                    심폐지표에는 알로메트릭 스케일링을 적용해 체중 차이에 따른 보정 효과를 보여줍니다.
+                </div>
+                <div class="report-section">적용 식</div>
+                <div class="report-copy">알로메트릭 지수 = 셔틀런 횟수 ÷ 몸무게<sup>0.33</sup></div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("### 4주 FITT 맞춤 처방")
+    plan_cols = st.columns(4)
+    for col, plan in zip(plan_cols, student_result["plan"]):
+        with col:
+            st.markdown(
+                f"""
+                <div class="plan-card">
+                    <div class="plan-week">{plan["week"]}</div>
+                    <div class="plan-title">{plan["title"]}</div>
+                    <div class="plan-item"><strong>F</strong> · {plan["freq"]}</div>
+                    <div class="plan-item"><strong>I</strong> · {plan["intensity"]}</div>
+                    <div class="plan-item"><strong>T</strong> · {plan["time"]}</div>
+                    <div class="plan-item"><strong>T</strong> · {plan["type"]}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
+raw_df, meta, load_error = load_raw_data()
+
+if load_error:
+    st.error(load_error)
+    st.info("`data/PAPS_Final_Master (5).xlsx` 파일을 `data` 폴더에 넣은 뒤 다시 실행해 주세요.")
+    st.stop()
+
+st.markdown(
+    """
+    <div class="topbar">
+        <div class="brand">
+            <div class="brand-badge">PC+</div>
+            <div class="brand-copy">
+                <h1>PAPS CARE+</h1>
+                <p>학교 체력 데이터 기반 AI 분석 대시보드</p>
+            </div>
+        </div>
+        <div class="status-chip">강원특별자치도 학교 체력 분석 리포트</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+main_tabs = st.tabs(["🏫 교육청 관리자 뷰", "📱 학생 개인 뷰"])
+
+with main_tabs[0]:
+    render_admin_view(raw_df, meta)
+
+with main_tabs[1]:
+    render_student_view()
