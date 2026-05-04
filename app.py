@@ -54,7 +54,7 @@ html, body, [class*="css"], .stApp {
 
 .sidebar-logo {
     background: #1a2233;
-    color: #ffffff;
+    color: #ffffff !important;
     padding: 18px 20px;
     font-size: 15px;
     font-weight: 700;
@@ -65,7 +65,7 @@ html, body, [class*="css"], .stApp {
 .sidebar-section {
     font-size: 10px;
     font-weight: 600;
-    color: #9ca3b0;
+    color: #9ca3b0 !important;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     padding: 14px 20px 4px 20px;
@@ -125,27 +125,6 @@ html, body, [class*="css"], .stApp {
 
 .top-header .breadcrumb-nav b {
     color: #374151;
-}
-
-[data-testid="stTabs"] [role="tablist"] {
-    border-bottom: 2px solid #e8eaf0;
-    gap: 0;
-}
-
-[data-testid="stTabs"] [role="tab"] {
-    font-size: 13px;
-    font-weight: 500;
-    color: #6b7280;
-    padding: 10px 18px;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
-    background: none;
-}
-
-[data-testid="stTabs"] [role="tab"][aria-selected="true"] {
-    color: #1a2233;
-    font-weight: 700;
-    border-bottom: 2px solid #1a2233;
 }
 
 .panel-card {
@@ -228,6 +207,12 @@ html, body, [class*="css"], .stApp {
     border-radius: 14px;
     padding: 14px 16px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+}
+
+[data-testid="stRadio"] label {
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    color: #1a2233 !important;
 }
 </style>
 """,
@@ -317,12 +302,7 @@ def apply_filters(df, years, regions, grades, genders, schools):
 
 def build_cluster_labels(cluster_summary, x_label):
     ordered = cluster_summary.sort_values("score", ascending=(x_label == "BMI")).index.tolist()
-    label_sets = {
-        2: ["관리 필요군", "건강 양호군"],
-        3: ["고위험군", "일반군", "우수군"],
-        4: ["고위험군", "중점관리군", "일반군", "우수군"],
-    }
-    names = label_sets[len(ordered)]
+    names = ["고위험군", "중점관리군", "일반군", "우수군"]
     return {cluster_id: names[index] for index, cluster_id in enumerate(ordered)}
 
 
@@ -380,8 +360,7 @@ def classify_student_profile(height_cm, weight_kg, shuttle_runs):
         ]
     )
     distances = (
-        (centroids["bmi"] - bmi) ** 2
-        + ((centroids["allometric"] - allometric_index) * 1.2) ** 2
+        (centroids["bmi"] - bmi) ** 2 + ((centroids["allometric"] - allometric_index) * 1.2) ** 2
     ) ** 0.5
     matched = centroids.loc[distances.idxmin()]
     return bmi, allometric_index, matched["label"]
@@ -415,12 +394,7 @@ with st.sidebar:
         "나의 AI 체력 진단",
         "4주 맞춤 운동 플랜 발급",
     ]
-    current_page = st.radio(
-        "이동",
-        nav_options,
-        index=0,
-        label_visibility="collapsed",
-    )
+    current_page = st.radio("이동", nav_options, index=0, label_visibility="collapsed")
 
     st.markdown('<hr class="divider">', unsafe_allow_html=True)
 
@@ -485,8 +459,7 @@ st.markdown(
     """
     <div class="notice-card">
         <b>PAPS CARE+ Intelligence</b><br>
-        본 시스템은 학교 체력 데이터를 기반으로 집단별 체력 수준을 AI 군집 분석하고,
-        취약 지역과 맞춤형 처방 방향을 시각적으로 제공합니다.
+        본 시스템은 학교 체력 데이터를 기반으로 집단별 체력 수준을 AI 군집 분석하고, 취약 지역과 맞춤형 처방 방향을 시각적으로 제공합니다.
     </div>
     """,
     unsafe_allow_html=True,
@@ -524,10 +497,8 @@ map_df["lat"] = map_df["시군"].apply(lambda value: get_coords(value)[0])
 map_df["lon"] = map_df["시군"].apply(lambda value: get_coords(value)[1])
 weight_map = {
     "고위험군": 10,
-    "관리 필요군": 8,
     "중점관리군": 5,
     "일반군": 1,
-    "건강 양호군": 0.5,
     "우수군": 0.1,
 }
 map_df["weight"] = map_df["유형"].map(weight_map).fillna(1)
@@ -544,13 +515,7 @@ def render_heatmap():
         zoom=6.8,
         mapbox_style="carto-darkmatter",
         hover_name="시군",
-        hover_data={
-            "순수학교명": True,
-            "유형": True,
-            "lat": False,
-            "lon": False,
-            "weight": False,
-        },
+        hover_data={"순수학교명": True, "유형": True, "lat": False, "lon": False, "weight": False},
         color_continuous_scale=[
             [0.0, "rgba(10, 15, 60, 0.0)"],
             [0.2, "rgba(20, 30, 120, 0.6)"],
@@ -561,31 +526,7 @@ def render_heatmap():
         ],
     )
     fig.update_traces(opacity=0.85)
-    fig.add_annotation(
-        x=0.98,
-        y=0.96,
-        xref="paper",
-        yref="paper",
-        xanchor="right",
-        yanchor="top",
-        text=(
-            "<b>취약 체력 증목</b><br>"
-            "<span style='color:#f07030'>━━━━</span>"
-            "<span style='color:#3050b0'>━━━━</span>"
-        ),
-        showarrow=False,
-        align="left",
-        bgcolor="rgba(255,255,255,0.93)",
-        bordercolor="rgba(210,215,225,0.8)",
-        borderwidth=1,
-        borderpad=12,
-        font=dict(size=12, color="#1a2233", family="Noto Sans KR"),
-    )
-    fig.update_layout(
-        height=560,
-        margin=dict(t=0, b=0, l=0, r=0),
-        coloraxis_showscale=False,
-    )
+    fig.update_layout(height=560, margin=dict(t=0, b=0, l=0, r=0), coloraxis_showscale=False)
     st.plotly_chart(fig, use_container_width=True)
 
 
@@ -599,12 +540,10 @@ def render_scatter():
         hover_data={"연도": True, "시군": True, "학년": True, "성별": True},
         labels={raw_x: x_ax, raw_y: y_ax, "유형": "집단"},
         color_discrete_map={
-            "관리 필요군": "#d44b57",
             "고위험군": "#d44b57",
             "중점관리군": "#ef8b2c",
             "일반군": "#1c9d74",
             "우수군": "#2574ea",
-            "건강 양호군": "#2574ea",
         },
     )
     fig.update_traces(
@@ -617,16 +556,7 @@ def render_scatter():
         margin=dict(t=10, b=10, l=10, r=10),
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1,
-            bgcolor="rgba(255,255,255,0.72)",
-        ),
-        xaxis=dict(showgrid=True, gridcolor="rgba(16,34,53,0.08)", zeroline=False),
-        yaxis=dict(showgrid=True, gridcolor="rgba(16,34,53,0.08)", zeroline=False),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
     st.plotly_chart(fig, use_container_width=True)
 
@@ -640,11 +570,11 @@ if current_page in ["📊 통합 대시보드 (Overview)", "도내 체력 현황
     with col3:
         st.metric("주요 집단 비율", f"{dominant_share}%")
     with col4:
-        high_risk = len(cluster_source[cluster_source["유형"].isin(["고위험군", "관리 필요군"])])
+        high_risk = len(cluster_source[cluster_source["유형"] == "고위험군"])
         st.metric("관리 필요 학교", f"{high_risk}개교")
 
     st.markdown("---")
-    left, right = st.columns([1.1, 0.9])
+    left, right = st.columns(2)
     with left:
         st.markdown('<div class="map-card">', unsafe_allow_html=True)
         render_heatmap()
@@ -655,7 +585,7 @@ if current_page in ["📊 통합 대시보드 (Overview)", "도내 체력 현황
         st.markdown("</div>", unsafe_allow_html=True)
 
 elif current_page == "체력 취약망 지도 (Heatmap)":
-    left, right = st.columns([1, 1])
+    left, right = st.columns(2)
     with left:
         st.markdown('<div class="map-card">', unsafe_allow_html=True)
         render_heatmap()
@@ -666,21 +596,13 @@ elif current_page == "체력 취약망 지도 (Heatmap)":
         st.markdown("</div>", unsafe_allow_html=True)
 
 elif current_page in ["🤖 AI 체육 데이터 분석 (Analytics)", "AI 다차원 군집 분석"]:
-    st.markdown("#### AI 다차원 군집 분석")
     render_scatter()
 
 elif current_page == "체격 보정 평가 모델 (Allometric)":
     allometric_df = cluster_source.copy()
     allometric_df["체중 추정"] = allometric_df[raw_x].abs().fillna(allometric_df[raw_x].mean()).clip(lower=1)
     allometric_df["보정 심폐지표"] = allometric_df[raw_y] / (allometric_df["체중 추정"] ** 0.33)
-    fig = px.scatter(
-        allometric_df,
-        x=raw_y,
-        y="보정 심폐지표",
-        color="유형",
-        title="원점수 vs 체격 보정 점수 비교",
-        labels={raw_y: "원점수", "보정 심폐지표": "체격 보정 점수"},
-    )
+    fig = px.scatter(allometric_df, x=raw_y, y="보정 심폐지표", color="유형", title="원점수 vs 체격 보정 점수 비교")
     fig.update_layout(height=520)
     st.plotly_chart(fig, use_container_width=True)
 
@@ -690,17 +612,14 @@ elif current_page == "종목/학년별 상세 통계":
     detail_df = filtered_df.dropna(subset=[metric_col]).copy()
     chart_df = detail_df.groupby(["학년", "성별"])[metric_col].mean().reset_index()
     fig = px.bar(chart_df, x="학년", y=metric_col, color="성별", barmode="group", title=f"{metric_choice} 학년/성별 평균")
-    fig.update_layout(height=480)
     st.plotly_chart(fig, use_container_width=True)
     st.dataframe(detail_df[["순수학교명", "시군", "학년", "성별", metric_col]].head(30), use_container_width=True)
 
 elif current_page in ["🏃‍♂️ 맞춤형 체력 증진 (Prescription)", "집단별 FITT 처방"]:
-    st.markdown("#### 집단별 FITT 처방")
-    row_order = ["고위험군", "관리 필요군", "중점관리군", "일반군", "건강 양호군", "우수군"]
-    visible_rows = [label for label in row_order if label in cluster_source["유형"].unique()]
-    for start in range(0, len(visible_rows), 2):
+    row_order = ["고위험군", "중점관리군", "일반군", "우수군"]
+    for start in range(0, len(row_order), 2):
         cols = st.columns(2)
-        for col, label in zip(cols, visible_rows[start:start + 2]):
+        for col, label in zip(cols, row_order[start:start + 2]):
             title_1, body_1, title_2, body_2 = get_prescription_content(label)
             subset = cluster_source[cluster_source["유형"] == label]
             tag_class = get_group_style(label)
@@ -720,15 +639,11 @@ elif current_page in ["🏃‍♂️ 맞춤형 체력 증진 (Prescription)", "�
                 )
 
 elif current_page == "학교별 교육 프로그램 추천":
-    risk_schools = cluster_source[cluster_source["유형"].isin(["고위험군", "관리 필요군"])].copy()
-    risk_schools = risk_schools.sort_values(by=raw_y, ascending=True)
-    st.dataframe(
-        risk_schools[["순수학교명", "시군", "연도", "학년", "성별", "유형"]].head(30),
-        use_container_width=True,
-    )
+    risk_schools = cluster_source[cluster_source["유형"].isin(["고위험군", "중점관리군"])].copy()
+    st.dataframe(risk_schools[["순수학교명", "시군", "연도", "학년", "성별", "유형"]].head(30), use_container_width=True)
 
 elif current_page in ["🏢 체육 행정 및 정책 지원 (Administration)", "체육 강사 우선 배치망"]:
-    risk_schools = cluster_source[cluster_source["유형"].isin(["고위험군", "관리 필요군"])].copy()
+    risk_schools = cluster_source[cluster_source["유형"].isin(["고위험군", "중점관리군"])].copy()
     priority = risk_schools.groupby("순수학교명").agg({"유형": "count", raw_y: "mean", "시군": "first"}).reset_index()
     priority.columns = ["학교명", "취약 학생군 건수", "심폐지표 평균", "시군"]
     priority = priority.sort_values(["취약 학생군 건수", "심폐지표 평균"], ascending=[False, True])
@@ -736,7 +651,7 @@ elif current_page in ["🏢 체육 행정 및 정책 지원 (Administration)", "
 
 elif current_page == "지역별 예산 집행 타당성":
     budget_df = cluster_source.groupby("시군").agg(
-        취약학교수=("유형", lambda x: int(x.isin(["고위험군", "관리 필요군"]).sum())),
+        취약학교수=("유형", lambda x: int(x.isin(["고위험군", "중점관리군"]).sum())),
         전체학교수=("순수학교명", "count"),
         평균심폐지표=(raw_y, "mean"),
     ).reset_index()
@@ -757,7 +672,6 @@ elif current_page in ["📱 학생/학부모 서비스 (B2C Portal)", "나의 AI
 
     bmi, allometric_index, cluster_label = classify_student_profile(height_cm, weight_kg, shuttle_runs)
     title_1, body_1, title_2, body_2 = get_prescription_content(cluster_label)
-    tag_class = get_group_style(cluster_label)
 
     a, b, c = st.columns(3)
     with a:
@@ -785,4 +699,12 @@ elif current_page in ["📱 학생/학부모 서비스 (B2C Portal)", "나의 AI
     with right:
         st.markdown(
             f"""
-            <div class="phone
+            <div class="phone-card">
+                <div class="phone-badge">4주 맞춤 운동 플랜</div>
+                <h4 style="margin:0 0 10px 0;">{title_1}</h4>
+                <p style="margin:0;color:#475467;line-height:1.8;">{body_1}</p>
+                <p style="margin:12px 0 0 0;color:#475467;line-height:1.8;"><b>{title_2}</b><br>{body_2}</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
