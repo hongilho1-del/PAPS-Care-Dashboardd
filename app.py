@@ -74,22 +74,22 @@ section.main {
     font-weight: 900;
     line-height: 1.25;
     letter-spacing: 0;
-    margin-bottom: 7px;
+    margin-bottom: 10px;
     white-space: nowrap;
 }
 
 .sidebar-group {
-    margin-top: 4px;
+    margin-top: 7px;
     padding: 0 10px;
 }
 
 .sidebar-section {
-    font-size: 11.5px;
+    font-size: 13px;
     font-weight: 800;
     color: #344054 !important;
     letter-spacing: 0.01em;
-    margin: 5px 0 1px 0;
-    line-height: 1.18;
+    margin: 8px 0 4px 0;
+    line-height: 1.3;
 }
 
 .block-container {
@@ -249,20 +249,36 @@ section.main {
     border: none;
     background: transparent;
     color: #344054;
-    padding: 0.02rem 0;
-    font-size: 11.5px;
+    padding: 2px 0 !important;
+    min-height: 24px !important;
+    height: auto !important;
+    font-size: 13px !important;
     font-weight: 500;
-    line-height: 1.15;
+    line-height: 1.28 !important;
     box-shadow: none;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
 }
 
 [data-testid="stSidebar"] .stButton,
 [data-testid="stSidebar"] [data-testid="stButton"] {
-    margin: 0 !important;
+    margin: 0 0 2px 0 !important;
 }
 
 [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
-    gap: 0 !important;
+    gap: 2px !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stButton"] button p,
+[data-testid="stSidebar"] [data-testid="stButton"] button div,
+[data-testid="stSidebar"] [data-testid="stButton"] button span {
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 13px !important;
+    line-height: 1.28 !important;
+    color: #344054 !important;
+    white-space: normal !important;
 }
 
 [data-testid="stButton"] button:hover {
@@ -274,11 +290,14 @@ section.main {
 
 .menu-active {
     color: #1d4ed8;
-    padding: 0.02rem 0;
-    font-size: 11.5px;
+    padding: 2px 0;
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+    font-size: 13px;
     font-weight: 800;
-    line-height: 1.15;
-    margin-bottom: 0;
+    line-height: 1.28;
+    margin-bottom: 2px;
 }
 
 .section-space {
