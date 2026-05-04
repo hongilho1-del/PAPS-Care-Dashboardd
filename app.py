@@ -40,6 +40,18 @@ html, body, [class*="css"], .stApp {
     padding-top: 0;
 }
 
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] .stRadio label,
+[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label,
+[data-testid="stSidebar"] .stMultiSelect label,
+[data-testid="stSidebar"] .stSelectbox label,
+[data-testid="stSidebar"] .stMarkdown,
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] span,
+[data-testid="stSidebar"] div {
+    color: #1a2233 !important;
+}
+
 .sidebar-logo {
     background: #1a2233;
     color: #ffffff;
@@ -384,16 +396,6 @@ if load_error:
 with st.sidebar:
     st.markdown('<div class="sidebar-logo">🏃 PAPS CARE+</div>', unsafe_allow_html=True)
 
-    st.markdown('<div class="sidebar-section">필터</div>', unsafe_allow_html=True)
-    s_year = st.multiselect("연도", sorted(raw_df["연도"].dropna().unique()))
-    s_region = st.multiselect("시·군", sorted(raw_df["시군"].dropna().unique()))
-    s_grade = st.multiselect("학년", sorted(raw_df["학년"].dropna().unique()))
-    s_gender = st.multiselect("성별", sorted(raw_df["성별"].dropna().unique()))
-    school_base_df = apply_filters(raw_df, s_year, s_region, s_grade, s_gender, [])
-    s_school = st.multiselect("학교", sorted(school_base_df["순수학교명"].dropna().unique()))
-
-    st.markdown('<hr class="divider">', unsafe_allow_html=True)
-
     st.markdown('<div class="sidebar-section">대시보드 메뉴</div>', unsafe_allow_html=True)
     nav_options = [
         "📊 통합 대시보드 (Overview)",
@@ -419,6 +421,16 @@ with st.sidebar:
         index=0,
         label_visibility="collapsed",
     )
+
+    st.markdown('<hr class="divider">', unsafe_allow_html=True)
+
+    st.markdown('<div class="sidebar-section">필터</div>', unsafe_allow_html=True)
+    s_year = st.multiselect("연도", sorted(raw_df["연도"].dropna().unique()))
+    s_region = st.multiselect("시·군", sorted(raw_df["시군"].dropna().unique()))
+    s_grade = st.multiselect("학년", sorted(raw_df["학년"].dropna().unique()))
+    s_gender = st.multiselect("성별", sorted(raw_df["성별"].dropna().unique()))
+    school_base_df = apply_filters(raw_df, s_year, s_region, s_grade, s_gender, [])
+    s_school = st.multiselect("학교", sorted(school_base_df["순수학교명"].dropna().unique()))
 
 
 filtered_df = apply_filters(raw_df, s_year, s_region, s_grade, s_gender, s_school)
@@ -773,12 +785,4 @@ elif current_page in ["📱 학생/학부모 서비스 (B2C Portal)", "나의 AI
     with right:
         st.markdown(
             f"""
-            <div class="phone-card">
-                <div class="phone-badge">4주 맞춤 운동 플랜</div>
-                <h4 style="margin:0 0 10px 0;">{title_1}</h4>
-                <p style="margin:0;color:#475467;line-height:1.8;">{body_1}</p>
-                <p style="margin:12px 0 0 0;color:#475467;line-height:1.8;"><b>{title_2}</b><br>{body_2}</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+            <div class="phone
