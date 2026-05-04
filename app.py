@@ -436,6 +436,15 @@ def load_raw_data():
     lat_col = find_col(["위도", "latitude", "lat", "Y좌표", "y좌표"])
     lon_col = find_col(["경도", "longitude", "lon", "X좌표", "x좌표"])
     fitness_grade_col = find_col(["체력등급", "종합등급", "PAPS등급", "건강체력등급", "평가등급"])
+    school_level_col = find_col(["학교급", "학교급명", "학교구분", "학교 구분", "학교유형", "학교 유형"])
+
+    def normalize_school_level(value):
+        text = str(value).strip()
+        if text in ["고", "고등", "고등학교"] or "고등" in text or text.endswith("고"):
+            return "고"
+        if text in ["중", "중학교"] or "중학교" in text or text.endswith("중"):
+            return "중"
+        return "미상"
 
     df["연도"] = (
         pd.to_numeric(df[year_col], errors="coerce").fillna(0).astype(int)
@@ -445,6 +454,12 @@ def load_raw_data():
     df["시군"] = find_first(["시군"], pd.Series(["미상"] * len(df), index=df.index))
     df["성별"] = find_first(["성별", "남여"], pd.Series(["전체"] * len(df), index=df.index))
     df["학년"] = find_first(["학년"], pd.Series(["전체"] * len(df), index=df.index))
+    school_level_source = (
+        df[school_level_col].astype(str).str.strip()
+        if school_level_col
+        else df["순수학교명"].astype(str)
+    )
+    df["학교급"] = school_level_source.apply(normalize_school_level)
     df["체력등급"] = df[fitness_grade_col].astype(str).str.strip() if fitness_grade_col else pd.NA
     df["위도"] = pd.to_numeric(df[lat_col], errors="coerce") if lat_col else pd.NA
     df["경도"] = pd.to_numeric(df[lon_col], errors="coerce") if lon_col else pd.NA
@@ -453,12 +468,14 @@ def load_raw_data():
     return df, {"valid": valid_targets, "file_path": file_path, "grade_col": "체력등급"}, None
 
 
-def apply_filters(df, years, regions, grades, genders, schools):
+def apply_filters(df, years, regions, school_levels, grades, genders, schools):
     filtered_df = df.copy()
     if years:
         filtered_df = filtered_df[filtered_df["연도"].isin(years)]
     if regions:
         filtered_df = filtered_df[filtered_df["시군"].isin(regions)]
+    if school_levels and "학교급" in filtered_df.columns:
+        filtered_df = filtered_df[filtered_df["학교급"].isin(school_levels)]
     if grades:
         filtered_df = filtered_df[filtered_df["학년"].isin(grades)]
     if genders:
@@ -595,6 +612,7 @@ def default_filter_state():
     return {
         "years": [],
         "regions": [],
+        "school_levels": [],
         "grades": [],
         "genders": [],
         "schools": [],
@@ -622,9 +640,10 @@ def render_filter_controls(
     if state["y_ax"] not in metric_options:
         state["y_ax"] = metric_options[1 if len(metric_options) > 1 else 0]
 
-    fields = list(fields or ["years", "regions", "grades", "genders", "schools"])
+    fields = list(fields or ["years", "regions", "school_levels", "grades", "genders", "schools"])
     years = []
     regions = []
+    school_levels = []
     grades = []
     genders = []
     schools = []
@@ -634,6 +653,8 @@ def render_filter_controls(
         filter_widgets.append("years")
     if "regions" in fields:
         filter_widgets.append("regions")
+    if "school_levels" in fields:
+        filter_widgets.append("school_levels")
     if "grades" in fields:
         filter_widgets.append("grades")
     if "genders" in fields:
@@ -661,6 +682,16 @@ def render_filter_controls(
                         default=[value for value in state["regions"] if value in region_options],
                         key=f"{key_prefix}_regions",
                     )
+                elif widget == "school_levels":
+                    level_options = [value for value in ["중", "고"] if value in set(df["학교급"].dropna().unique())]
+                    if not level_options:
+                        level_options = ["중", "고"]
+                    school_levels = st.multiselect(
+                        "학교급",
+                        level_options,
+                        default=[value for value in state.get("school_levels", []) if value in level_options],
+                        key=f"{key_prefix}_school_levels",
+                    )
                 elif widget == "grades":
                     grade_options = sorted(df["학년"].dropna().unique())
                     grades = st.multiselect(
@@ -678,7 +709,7 @@ def render_filter_controls(
                         key=f"{key_prefix}_genders",
                     )
                 elif widget == "schools":
-                    school_base_df = apply_filters(df, years, regions, grades, genders, [])
+                    school_base_df = apply_filters(df, years, regions, school_levels, grades, genders, [])
                     school_options = sorted(school_base_df["순수학교명"].dropna().unique())
                     schools = st.multiselect(
                         "학교",
@@ -705,6 +736,7 @@ def render_filter_controls(
         {
             "years": years,
             "regions": regions,
+            "school_levels": school_levels,
             "grades": grades,
             "genders": genders,
             "schools": schools,
@@ -721,6 +753,7 @@ def build_clustered_view(df, meta, filters):
         df,
         filters["years"],
         filters["regions"],
+        filters.get("school_levels", []),
         filters["grades"],
         filters["genders"],
         filters["schools"],
@@ -728,7 +761,7 @@ def build_clustered_view(df, meta, filters):
     if filtered_df.empty:
         return None, "선택한 조건에 맞는 데이터가 없습니다. 필터를 조정해 주세요."
 
-    group_cols = ["순수학교명", "연도", "시군", "학년", "성별"]
+    group_cols = ["순수학교명", "연도", "시군", "학교급", "학년", "성별"]
     agg_map = {column: "mean" for column in meta["valid"].values()}
     if "위도" in filtered_df.columns:
         agg_map["위도"] = "mean"
@@ -1214,32 +1247,32 @@ with st.sidebar:
     st.markdown('<div class="sidebar-group">', unsafe_allow_html=True)
     st.markdown('<div class="sidebar-section">1. 📊 통합 대시보드</div>', unsafe_allow_html=True)
     render_nav_button("강원특별자치도 체력 현황 요약", "📌 강원특별자치도 체력 현황 요약")
-    render_nav_button("체력 취약망 지도 (Heatmap)", "체력 취약망 지도")
+    render_nav_button("체력 취약망 지도 (Heatmap)", "🗺️ 체력 취약망 지도")
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="sidebar-group">', unsafe_allow_html=True)
     st.markdown('<div class="sidebar-section">2. 🤖 AI 체육 데이터 분석</div>', unsafe_allow_html=True)
     render_nav_button("체격 보정 평가 모델 (Allometric)", "⚖️ 체격 보정 평가 모델")
-    render_nav_button("AI 다차원 군집 분석")
-    render_nav_button("종목/학년별 상세 통계")
+    render_nav_button("AI 다차원 군집 분석", "🧬 AI 다차원 군집 분석")
+    render_nav_button("종목/학년별 상세 통계", "📈 종목/학년별 상세 통계")
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="sidebar-group">', unsafe_allow_html=True)
     st.markdown('<div class="sidebar-section">3. 🏃‍♂️ 맞춤형 체력 증진</div>', unsafe_allow_html=True)
     render_nav_button("집단별 FITT 처방", "🧭 집단별 FITT 처방")
-    render_nav_button("학교별 교육 프로그램 추천", "학교별 프로그램 추천")
+    render_nav_button("학교별 교육 프로그램 추천", "🎒 학교별 프로그램 추천")
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="sidebar-group">', unsafe_allow_html=True)
     st.markdown('<div class="sidebar-section">4. 🏢 행정·정책 지원</div>', unsafe_allow_html=True)
     render_nav_button("체육 강사 우선 배치망", "🏫 체육 강사 우선 배치망")
-    render_nav_button("지역별 예산 집행 타당성", "지역별 예산 타당성")
+    render_nav_button("지역별 예산 집행 타당성", "💰 지역별 예산 타당성")
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="sidebar-group">', unsafe_allow_html=True)
     st.markdown('<div class="sidebar-section">5. 📱 학생/학부모 서비스</div>', unsafe_allow_html=True)
     render_nav_button("나의 AI 체력 진단", "🧑‍🎓 나의 AI 체력 진단")
-    render_nav_button("4주 맞춤 운동 플랜 발급", "4주 운동 플랜 발급")
+    render_nav_button("4주 맞춤 운동 플랜 발급", "🗓️ 4주 운동 플랜 발급")
     st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -1328,7 +1361,7 @@ def render_heatmap_page():
         raw_df,
         meta,
         "heatmap",
-        fields=["years", "regions", "grades", "genders"],
+        fields=["years", "regions", "school_levels", "grades", "genders"],
     )
     result, error = build_clustered_view(raw_df, meta, filters)
     if error:
@@ -1373,7 +1406,7 @@ def render_allometric_page():
         raw_df,
         meta,
         "allometric",
-        fields=["years", "regions", "grades", "genders"],
+        fields=["years", "regions", "school_levels", "grades", "genders"],
     )
     metric_options = list(meta["valid"].keys())
     fitness_options = [metric for metric in metric_options if metric != "BMI"] or metric_options
@@ -1440,7 +1473,7 @@ def render_cluster_page():
         meta,
         "cluster",
         include_axis=True,
-        fields=["years", "regions", "grades", "genders", "schools"],
+        fields=["years", "regions", "school_levels", "grades", "genders", "schools"],
     )
     result, error = build_clustered_view(raw_df, meta, filters)
     if error:
@@ -1468,9 +1501,17 @@ def render_detail_page():
         raw_df,
         meta,
         "detail",
-        fields=["years", "regions", "grades", "genders", "schools"],
+        fields=["years", "regions", "school_levels", "grades", "genders", "schools"],
     )
-    filtered_df = apply_filters(raw_df, filters["years"], filters["regions"], filters["grades"], filters["genders"], filters["schools"])
+    filtered_df = apply_filters(
+        raw_df,
+        filters["years"],
+        filters["regions"],
+        filters.get("school_levels", []),
+        filters["grades"],
+        filters["genders"],
+        filters["schools"],
+    )
     if filtered_df.empty:
         st.warning("선택한 조건에 맞는 데이터가 없습니다.")
         return
@@ -1528,7 +1569,7 @@ def render_prescription_page():
         raw_df,
         meta,
         "prescription",
-        fields=["years", "regions", "grades", "genders"],
+        fields=["years", "regions", "school_levels", "grades", "genders"],
     )
     result, error = build_clustered_view(raw_df, meta, filters)
     if error:
@@ -1577,7 +1618,7 @@ def render_school_recommendation_page():
         raw_df,
         meta,
         "school_rec",
-        fields=["years", "regions", "grades", "genders"],
+        fields=["years", "regions", "school_levels", "grades", "genders"],
     )
     result, error = build_clustered_view(raw_df, meta, filters)
     if error:
@@ -1610,7 +1651,7 @@ def render_teacher_priority_page():
         raw_df,
         meta,
         "teacher_priority",
-        fields=["years", "regions"],
+        fields=["years", "regions", "school_levels"],
     )
     result, error = build_clustered_view(raw_df, meta, filters)
     if error:
@@ -1637,7 +1678,7 @@ def render_budget_page():
         raw_df,
         meta,
         "budget",
-        fields=["years", "regions"],
+        fields=["years", "regions", "school_levels"],
     )
     result, error = build_clustered_view(raw_df, meta, filters)
     if error:
@@ -1656,6 +1697,24 @@ def render_budget_page():
     budget_df["취약비율"] = (budget_df["취약학교수"] / budget_df["전체학교수"] * 100).round(1)
     budget_df["1인당 체육 예산"] = (120 - budget_df["취약비율"] * 0.8).clip(lower=35).round(1)
     budget_df["지역 취약도 점수"] = budget_df["취약비율"]
+    top_risk = budget_df.sort_values("지역 취약도 점수", ascending=False).head(1)
+    blind_spot = budget_df.sort_values(["지역 취약도 점수", "1인당 체육 예산"], ascending=[False, True]).head(1)
+    if not budget_df.empty:
+        top_name = top_risk["시군"].iloc[0]
+        top_score = top_risk["지역 취약도 점수"].iloc[0]
+        blind_name = blind_spot["시군"].iloc[0]
+        blind_budget = blind_spot["1인당 체육 예산"].iloc[0]
+        st.markdown(
+            f"""
+            <div class="insight-card">
+                <h4>그래프 해석 요약</h4>
+                <p><b>{top_name}</b> 권역의 지역 취약도 점수가 {top_score}점으로 가장 높게 나타났습니다. 
+                또한 <b>{blind_name}</b>은 취약도 대비 1인당 체육 예산 지표가 낮아 예산 사각지대 후보로 우선 검토할 필요가 있습니다.</p>
+                <p style="margin-top:10px;">아래 그래프는 지역별 취약 비율을 먼저 확인한 뒤, 예산 투입 수준과 취약도 점수가 같은 방향으로 움직이는지 비교하는 화면입니다.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
     fig = px.bar(budget_df.sort_values("취약비율", ascending=False), x="시군", y="취약비율", title="지역별 취약 비율")
     apply_readable_axes(fig, height=430, margin=dict(t=58, b=56, l=40, r=20))
     fig.update_xaxes(tickangle=-30)
@@ -1670,7 +1729,6 @@ def render_budget_page():
     apply_readable_axes(fig_compare, height=430, margin=dict(t=58, b=56, l=40, r=20))
     fig_compare.update_xaxes(tickangle=-30)
     st.plotly_chart(fig_compare, use_container_width=True)
-    blind_spot = budget_df.sort_values(["지역 취약도 점수", "1인당 체육 예산"], ascending=[False, True]).head(1)
     if not blind_spot.empty:
         st.markdown(
             f"""
@@ -1683,19 +1741,15 @@ def render_budget_page():
     st.dataframe(budget_df.sort_values("취약비율", ascending=False), use_container_width=True)
 
 
-def render_b2c_page():
-    st.markdown("#### 학생/학부모 서비스")
-    left_input, right_mock = st.columns([0.9, 1.1])
-    with left_input:
-        height_cm = st.number_input("키 (cm)", min_value=120, max_value=210, value=165, step=1)
-        weight_kg = st.number_input("몸무게 (kg)", min_value=25, max_value=150, value=58, step=1)
-        st.markdown("##### 5대 체력 요인 입력")
-        shuttle_runs = st.number_input("심폐지구력 - 셔틀런 횟수", min_value=1, max_value=200, value=42, step=1)
-        strength_score = st.number_input("근력/근지구력 - 악력 또는 근력 점수", min_value=1, max_value=100, value=38, step=1)
-        flexibility_cm = st.number_input("유연성 - 앉아윗몸앞으로굽히기(cm)", min_value=-20, max_value=50, value=15, step=1)
-        power_cm = st.number_input("순발력 - 제자리멀리뛰기(cm)", min_value=50, max_value=350, value=175, step=1)
-
-    bmi, allometric_index, cluster_label, component_scores = classify_student_profile(
+def render_student_profile_inputs(key_prefix):
+    height_cm = st.number_input("키 (cm)", min_value=120, max_value=210, value=165, step=1, key=f"{key_prefix}_height")
+    weight_kg = st.number_input("몸무게 (kg)", min_value=25, max_value=150, value=58, step=1, key=f"{key_prefix}_weight")
+    st.markdown("##### 5대 체력 요인 입력")
+    shuttle_runs = st.number_input("심폐지구력 - 셔틀런 횟수", min_value=1, max_value=200, value=42, step=1, key=f"{key_prefix}_cardio")
+    strength_score = st.number_input("근력/근지구력 - 악력 또는 근력 점수", min_value=1, max_value=100, value=38, step=1, key=f"{key_prefix}_strength")
+    flexibility_cm = st.number_input("유연성 - 앉아윗몸앞으로굽히기(cm)", min_value=-20, max_value=50, value=15, step=1, key=f"{key_prefix}_flex")
+    power_cm = st.number_input("순발력 - 제자리멀리뛰기(cm)", min_value=50, max_value=350, value=175, step=1, key=f"{key_prefix}_power")
+    return classify_student_profile(
         height_cm,
         weight_kg,
         shuttle_runs,
@@ -1703,6 +1757,13 @@ def render_b2c_page():
         flexibility_cm,
         power_cm,
     )
+
+
+def render_b2c_diagnosis_page():
+    st.markdown("#### 나의 AI 체력 진단")
+    left_input, right_mock = st.columns([0.9, 1.1])
+    with left_input:
+        bmi, allometric_index, cluster_label, component_scores = render_student_profile_inputs("diagnosis")
     title_1, body_1, title_2, body_2 = get_prescription_content(cluster_label)
 
     with right_mock:
@@ -1762,11 +1823,53 @@ def render_b2c_page():
     st.markdown(
         f"""
         <div class="alert-card">
-            4주 맞춤 운동 플랜: {body_1} {body_2}
+            진단 요약: {body_1} {body_2}
         </div>
         """,
         unsafe_allow_html=True,
     )
+
+
+def render_b2c_plan_page():
+    st.markdown("#### 4주 맞춤 운동 플랜 발급")
+    left_input, right_plan = st.columns([0.85, 1.15])
+    with left_input:
+        bmi, allometric_index, cluster_label, component_scores = render_student_profile_inputs("plan")
+
+    title_1, body_1, title_2, body_2 = get_prescription_content(cluster_label)
+    intensity = "저강도" if "고위험" in cluster_label or "관리 필요" in cluster_label else "중등도"
+    plan_df = pd.DataFrame(
+        {
+            "주차": ["1주차", "2주차", "3주차", "4주차"],
+            "빈도(F)": ["주 3회", "주 3~4회", "주 4회", "주 4~5회"],
+            "강도(I)": [intensity, intensity, "중등도+" if intensity == "중등도" else "저~중강도", "개인 목표 강도"],
+            "시간(T)": ["20~30분", "30분", "35~40분", "40~45분"],
+            "종류(T)": ["걷기·스트레칭", "순환운동", "인터벌+근력", "자기 기록 관리"],
+        }
+    )
+
+    with right_plan:
+        st.markdown(
+            f"""
+            <div class="report-card">
+                <span class="report-tag {get_group_style(cluster_label)}">{cluster_label}</span>
+                <h4>{title_1}</h4>
+                <p>BMI {bmi:.1f} · AI 보정 체력 지수 {allometric_index:.1f}점</p>
+                <p>{body_1}</p>
+                <p><b>{title_2}</b><br>{body_2}</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.dataframe(plan_df, use_container_width=True, hide_index=True)
+        st.markdown(
+            """
+            <div class="alert-card">
+                오늘의 미션: 30분 빠르게 걷기 후 하체 스트레칭 8분을 완료 체크하세요.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 page_map = {
@@ -1779,8 +1882,8 @@ page_map = {
     "학교별 교육 프로그램 추천": render_school_recommendation_page,
     "체육 강사 우선 배치망": render_teacher_priority_page,
     "지역별 예산 집행 타당성": render_budget_page,
-    "나의 AI 체력 진단": render_b2c_page,
-    "4주 맞춤 운동 플랜 발급": render_b2c_page,
+    "나의 AI 체력 진단": render_b2c_diagnosis_page,
+    "4주 맞춤 운동 플랜 발급": render_b2c_plan_page,
 }
 
 if current_page not in page_map:
