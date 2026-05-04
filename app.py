@@ -407,6 +407,168 @@ section.main {
     word-break: keep-all;
     overflow-wrap: anywhere;
 }
+
+.kpi-card {
+    position: relative;
+    overflow: hidden;
+    min-height: 142px;
+    border-radius: 18px;
+    padding: 18px;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+}
+
+.kpi-card::after {
+    content: "";
+    position: absolute;
+    right: -28px;
+    top: -28px;
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.55);
+}
+
+.kpi-blue { background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); }
+.kpi-green { background: linear-gradient(135deg, #ecfdf5 0%, #ccfbf1 100%); }
+.kpi-orange { background: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%); }
+.kpi-red { background: linear-gradient(135deg, #fff1f2 0%, #fecdd3 100%); }
+.kpi-purple { background: linear-gradient(135deg, #faf5ff 0%, #e9d5ff 100%); }
+
+.kpi-icon {
+    position: relative;
+    z-index: 1;
+    font-size: 26px;
+    line-height: 1;
+    margin-bottom: 12px;
+}
+
+.kpi-label {
+    position: relative;
+    z-index: 1;
+    color: #344054 !important;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: -0.01em;
+}
+
+.kpi-value {
+    position: relative;
+    z-index: 1;
+    color: #111827 !important;
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    margin-top: 6px;
+}
+
+.kpi-delta {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: #0f766e !important;
+    font-size: 12px;
+    font-weight: 900;
+    margin-top: 10px;
+}
+
+.ai-briefing {
+    background: linear-gradient(90deg, #0f766e 0%, #134e4a 100%);
+    padding: 20px;
+    border-radius: 16px;
+    color: #ffffff !important;
+    margin-bottom: 22px;
+    box-shadow: 0 16px 32px rgba(15, 118, 110, 0.20);
+}
+
+.ai-briefing-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.ai-briefing-icon {
+    font-size: 30px;
+    flex: 0 0 auto;
+}
+
+.ai-briefing h4 {
+    margin: 0 0 5px 0;
+    color: #5eead4 !important;
+    font-size: 16px;
+    font-weight: 900;
+}
+
+.ai-briefing p,
+.ai-briefing b,
+.ai-briefing span {
+    margin: 0;
+    color: rgba(255,255,255,0.92) !important;
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+.simulator-card {
+    background: linear-gradient(135deg, #f0f9ff 0%, #ecfdf5 100%);
+    border: 1px solid #bae6fd;
+    border-radius: 16px;
+    padding: 18px;
+    margin: 18px 0;
+    box-shadow: 0 10px 24px rgba(14, 116, 144, 0.08);
+}
+
+.quick-action-card {
+    min-height: 150px;
+    border-radius: 18px;
+    padding: 18px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    box-shadow: 0 12px 26px rgba(15, 23, 42, 0.07);
+    margin-bottom: 10px;
+}
+
+.quick-blue { background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); }
+.quick-green { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); }
+.quick-amber { background: linear-gradient(135deg, #fffbeb 0%, #fde68a 100%); }
+
+.quick-action-card h4 {
+    margin: 0 0 8px 0;
+    color: #111827 !important;
+    font-size: 15px;
+    font-weight: 900;
+}
+
+.quick-action-card p,
+.quick-action-card b {
+    margin: 0;
+    color: #344054 !important;
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+[data-testid="stMain"] [data-testid="stButton"] button {
+    justify-content: center !important;
+    text-align: center !important;
+    background: #0f766e !important;
+    color: #ffffff !important;
+    border-radius: 10px !important;
+    padding: 9px 12px !important;
+    min-height: 38px !important;
+    font-weight: 800 !important;
+    box-shadow: 0 8px 18px rgba(15, 118, 110, 0.18) !important;
+}
+
+[data-testid="stMain"] [data-testid="stButton"] button p,
+[data-testid="stMain"] [data-testid="stButton"] button span {
+    color: #ffffff !important;
+}
+
+[data-testid="stMain"] [data-testid="stButton"] button:hover {
+    background: #134e4a !important;
+    color: #ffffff !important;
+    text-decoration: none !important;
+}
 </style>
 """,
     unsafe_allow_html=True,
@@ -705,6 +867,7 @@ def render_filter_controls(
                         year_options,
                         default=[value for value in state["years"] if value in year_options],
                         key=f"{key_prefix}_years",
+                        placeholder="선택",
                     )
                 elif widget == "regions":
                     region_options = sorted(df["시군"].dropna().unique())
@@ -713,6 +876,7 @@ def render_filter_controls(
                         region_options,
                         default=[value for value in state["regions"] if value in region_options],
                         key=f"{key_prefix}_regions",
+                        placeholder="선택",
                     )
                 elif widget == "school_levels":
                     level_options = [value for value in ["중", "고"] if value in set(df["학교급"].dropna().unique())]
@@ -723,6 +887,7 @@ def render_filter_controls(
                         level_options,
                         default=[value for value in state.get("school_levels", []) if value in level_options],
                         key=f"{key_prefix}_school_levels",
+                        placeholder="선택",
                     )
                 elif widget == "grades":
                     grade_options = sorted(df["학년"].dropna().unique())
@@ -731,6 +896,7 @@ def render_filter_controls(
                         grade_options,
                         default=[value for value in state["grades"] if value in grade_options],
                         key=f"{key_prefix}_grades",
+                        placeholder="선택",
                     )
                 elif widget == "genders":
                     gender_options = sorted(df["성별"].dropna().unique())
@@ -739,6 +905,7 @@ def render_filter_controls(
                         gender_options,
                         default=[value for value in state["genders"] if value in gender_options],
                         key=f"{key_prefix}_genders",
+                        placeholder="선택",
                     )
                 elif widget == "schools":
                     school_base_df = apply_filters(df, years, regions, school_levels, grades, genders, [])
@@ -748,6 +915,7 @@ def render_filter_controls(
                         school_options,
                         default=[v for v in state["schools"] if v in school_options],
                         key=f"{key_prefix}_schools",
+                        placeholder="선택",
                     )
 
     x_ax = state["x_ax"]
@@ -952,6 +1120,7 @@ def apply_plotly_theme(fig, height=None, margin=None, legend=None):
             bordercolor="#1f2937",
             font=dict(color=colors["text"], family="Noto Sans KR", size=13),
         ),
+        "hovermode": "closest",
     }
     if height is not None:
         layout["height"] = height
@@ -1251,6 +1420,76 @@ def render_download_table(df, columns, label="분석 데이터 다운로드"):
     st.dataframe(export_df.head(50), use_container_width=True)
 
 
+def render_kpi_card(icon, label, value, delta, tone="blue"):
+    st.markdown(
+        f"""
+        <div class="kpi-card kpi-{tone}">
+            <div class="kpi-icon">{icon}</div>
+            <div class="kpi-label">{label}</div>
+            <div class="kpi-value">{value}</div>
+            <div class="kpi-delta">↗ {delta}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_ai_briefing(dominant_group, weak_share, high_risk_estimate):
+    st.markdown(
+        f"""
+        <div class="ai-briefing">
+            <div class="ai-briefing-row">
+                <span class="ai-briefing-icon">📢</span>
+                <div>
+                    <h4>AI 실시간 상태 브리핑</h4>
+                    <p>현재 강원특별자치도 분석 데이터에서 <b>{dominant_group}</b>이 가장 큰 비중을 차지합니다. AI 취약군 비율은 <b>{weak_share}%</b>, 집중 관리 추정 대상은 <b>{high_risk_estimate:,}명</b>으로 산출되었습니다.</p>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_quick_actions(page_name):
+    safe_key = "".join(ch if ch.isalnum() else "_" for ch in str(page_name))
+    st.markdown("---")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown(
+            """
+            <div class="quick-action-card quick-blue">
+                <h4>📋 리포트 생성</h4>
+                <p>현재 화면의 분석 결과를 보고서 형태로 정리해 공유할 수 있습니다.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.button("PDF 다운로드", key=f"{safe_key}_btn_pdf")
+    with c2:
+        st.markdown(
+            """
+            <div class="quick-action-card quick-green">
+                <h4>🎯 우선순위 권고</h4>
+                <p>AI가 제안하는 이번 달 최우선 지원 학교와 지역을 확인합니다.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.button("권고안 확인", key=f"{safe_key}_btn_rec")
+    with c3:
+        st.markdown(
+            """
+            <div class="quick-action-card quick-amber">
+                <h4>📞 전문가 상담</h4>
+                <p>특이 지표가 감지된 학교를 도교육청 담당자에게 알림으로 전달합니다.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.button("긴급 알림 발송", key=f"{safe_key}_btn_sos")
+
+
 def set_page(page_name):
     st.session_state["current_page"] = page_name
 
@@ -1360,17 +1599,19 @@ def render_overview():
     student_estimate = len(result["filtered_df"])
     high_risk_estimate = int(student_estimate * weak_share / 100)
 
+    render_ai_briefing(dominant_group, weak_share, high_risk_estimate)
+
     c1, c2, c3, c4, c5 = st.columns(5)
     with c1:
-        st.metric("분석 대상", f"{cluster_source['순수학교명'].nunique()}개교", f"{student_estimate:,}건")
+        render_kpi_card("🏫", "분석 대상", f"{cluster_source['순수학교명'].nunique()}개교", f"{student_estimate:,}건", "blue")
     with c2:
-        st.metric("4·5등급 비율", grade_45_value, grade_45_help)
+        render_kpi_card("📉", "4·5등급 비율", grade_45_value, grade_45_help, "red")
     with c3:
-        st.metric("AI 취약군 비율", f"{weak_share}%", "고위험·관리필요군")
+        render_kpi_card("🧠", "AI 취약군 비율", f"{weak_share}%", "고위험·관리필요군", "orange")
     with c4:
-        st.metric("AI 고위험군 추정치", f"{high_risk_estimate:,}명", "집중 관리 대상")
+        render_kpi_card("🚨", "AI 고위험군 추정치", f"{high_risk_estimate:,}명", "집중 관리 대상", "purple")
     with c5:
-        st.metric("주요 집단", dominant_group, f"{dominant_share}%")
+        render_kpi_card("🎯", "주요 집단", dominant_group, f"{dominant_share}%", "green")
 
     st.markdown("---")
     left, right = st.columns([1.4, 0.8])
@@ -1910,7 +2151,13 @@ def render_school_recommendation_page():
     filter_col1, filter_col2 = st.columns([1.2, 1.2])
     with filter_col1:
         all_progs = sorted(risk_schools["추천프로그램"].dropna().unique())
-        selected_prog = st.multiselect("📌 프로그램별 필터", all_progs, default=all_progs, key="school_rec_dynamic_program")
+        selected_prog = st.multiselect(
+            "📌 프로그램별 필터",
+            all_progs,
+            default=all_progs,
+            key="school_rec_dynamic_program",
+            placeholder="선택",
+        )
     with filter_col2:
         school_keyword = st.text_input(
             "학교명 검색",
@@ -2015,6 +2262,43 @@ def render_budget_page():
             """,
             unsafe_allow_html=True,
         )
+
+    st.markdown(
+        """
+        <div class="simulator-card">
+            <b>🧪 정책 시뮬레이터</b><br>
+            예산 증액률과 사업 효과 계수를 조절해 지역 취약도 점수가 어느 정도 완화될 수 있는지 가상으로 확인합니다.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    sim_col1, sim_col2 = st.columns([0.85, 1.65])
+    with sim_col1:
+        budget_increase = st.slider("체육 예산 증액률(%)", 0, 30, 10, 5, key="budget_sim_increase")
+        effect_ratio = st.slider("사업 효과 계수", 0.5, 2.0, 1.0, 0.1, key="budget_sim_effect")
+    projected_reduction = round(budget_increase * effect_ratio * 0.18, 1)
+    sim_df = budget_df[["시군", "지역 취약도 점수"]].copy()
+    sim_df["시뮬레이션 후 취약도"] = (sim_df["지역 취약도 점수"] - projected_reduction).clip(lower=0).round(1)
+    sim_long_df = sim_df.melt(
+        id_vars="시군",
+        value_vars=["지역 취약도 점수", "시뮬레이션 후 취약도"],
+        var_name="구분",
+        value_name="취약도",
+    )
+    with sim_col2:
+        fig_sim = px.bar(
+            sim_long_df.sort_values("취약도", ascending=False),
+            x="시군",
+            y="취약도",
+            color="구분",
+            barmode="group",
+            title=f"예산 {budget_increase}% 증액 시 예상 취약도 변화",
+            color_discrete_map={"지역 취약도 점수": "#ef8b2c", "시뮬레이션 후 취약도": "#0f766e"},
+        )
+        apply_readable_axes(fig_sim, height=360, margin=dict(t=58, b=56, l=40, r=20))
+        fig_sim.update_xaxes(tickangle=-30)
+        st.plotly_chart(fig_sim, use_container_width=True)
+
     fig = px.bar(budget_df.sort_values("취약비율", ascending=False), x="시군", y="취약비율", title="지역별 취약 비율")
     apply_readable_axes(fig, height=430, margin=dict(t=58, b=56, l=40, r=20))
     fig.update_xaxes(tickangle=-30)
@@ -2208,3 +2492,4 @@ if current_page not in page_map:
     st.session_state["current_page"] = current_page
 
 page_map[current_page]()
+render_quick_actions(current_page)
