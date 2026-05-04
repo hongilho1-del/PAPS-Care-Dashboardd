@@ -1,3 +1,10 @@
+import os
+
+import pandas as pd
+import plotly.express as px
+import streamlit as st
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
 
         color: var(--text);
     }
