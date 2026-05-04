@@ -1590,42 +1590,202 @@ def render_prescription_page():
     if error:
         st.warning(error)
         return
+
+    st.markdown("#### 집단별 5대 요인 기반 맞춤형 FITT 처방")
+    st.caption("AI가 판별한 체력 군집과 5대 체력 요인의 불균형을 동시에 고려하여 최적의 운동 처방을 제안합니다.")
+
+    cluster_source = result["cluster_source"]
     row_order = ["고위험군", "관리 필요군", "중점관리군", "일반군", "건강 양호군", "우수군"]
-    visible_rows = [label for label in row_order if label in result["cluster_source"]["유형"].unique()]
+    visible_rows = [label for label in row_order if label in cluster_source["유형"].unique()]
+    if not visible_rows:
+        st.info("데이터가 부족하여 처방을 생성할 수 없습니다.")
+        return
+
+    fitness_cols = {
+        "심폐지구력": meta["valid"].get("심폐지구력"),
+        "근력/근지구력": meta["valid"].get("근력/근지구력"),
+        "유연성": meta["valid"].get("유연성"),
+        "순발력": meta["valid"].get("순발력"),
+        "BMI(체조성)": meta["valid"].get("BMI"),
+    }
+    fitness_cols = {name: col for name, col in fitness_cols.items() if col and col in cluster_source.columns}
+
+    fitt_db = {
+        "심폐지구력": {
+            "F": "주 3~5회",
+            "I": "최대심박수의 50~70%",
+            "T_time": "30~45분 이상",
+            "T_type": "빠르게 걷기·조깅·수영·자전거",
+            "title": "심폐 기능 회복 및 지구력 강화",
+            "desc": "심장과 폐의 산소 공급 능력을 높이는 것이 최우선입니다. 관절에 무리가 가지 않는 걷기부터 시작해 점진적으로 인터벌 조깅으로 넘어갑니다.",
+        },
+        "근력/근지구력": {
+            "F": "주 2~3회",
+            "I": "10~15회 반복 가능한 강도",
+            "T_time": "30~40분",
+            "T_type": "스쿼트·팔굽혀펴기·밴드 운동",
+            "title": "기초 근력 밸런스 확보",
+            "desc": "코어 및 큰 근육 위주의 근력 강화가 필요합니다. 맨몸 운동으로 자세를 먼저 잡고, 소도구를 활용해 근지구력을 늘립니다.",
+        },
+        "유연성": {
+            "F": "주 5회 이상",
+            "I": "통증 없는 뻐근함",
+            "T_time": "15~20분",
+            "T_type": "정적 스트레칭·요가·필라테스",
+            "title": "관절 가동범위 및 상해 예방",
+            "desc": "근육의 긴장을 풀고 가동범위를 늘려 부상을 방지해야 합니다. 햄스트링과 흉추 가동성 스트레칭을 중점적으로 진행합니다.",
+        },
+        "순발력": {
+            "F": "주 2~3회",
+            "I": "최대 노력의 80~100%",
+            "T_time": "15~20분",
+            "T_type": "점프스쿼트·셔틀런·배드민턴",
+            "title": "신경근 반응 속도 극대화",
+            "desc": "근력을 빠르게 폭발시키는 능력이 요구됩니다. 부상 위험이 있으므로 충분한 웜업 후 점프 훈련과 민첩성 드릴을 수행합니다.",
+        },
+    }
+
+    def hex_to_rgba(hex_color, alpha=0.24):
+        clean = hex_color.lstrip("#")
+        if len(clean) != 6:
+            return f"rgba(15, 118, 110, {alpha})"
+        r, g, b = (int(clean[i:i + 2], 16) for i in (0, 2, 4))
+        return f"rgba({r}, {g}, {b}, {alpha})"
+
+    def normalize_factor_score(name, column, value):
+        series = pd.to_numeric(cluster_source[column], errors="coerce").dropna()
+        if series.empty or pd.isna(value):
+            return 50
+        if name == "BMI(체조성)":
+            return clamp_score(100 - abs(value - 21.5) * 8)
+        min_value = series.min()
+        max_value = series.max()
+        if max_value == min_value:
+            return 60
+        return clamp_score((value - min_value) / (max_value - min_value) * 100)
+
+    def detect_weakest_factor(subset):
+        candidate_scores = {}
+        for factor_name in ["심폐지구력", "근력/근지구력", "유연성", "순발력"]:
+            column = fitness_cols.get(factor_name)
+            if not column:
+                continue
+            all_series = pd.to_numeric(cluster_source[column], errors="coerce").dropna()
+            subset_mean = pd.to_numeric(subset[column], errors="coerce").mean()
+            std_value = all_series.std()
+            if all_series.empty or pd.isna(subset_mean) or std_value == 0 or pd.isna(std_value):
+                continue
+            candidate_scores[factor_name] = (subset_mean - all_series.mean()) / std_value
+        if candidate_scores:
+            return min(candidate_scores, key=candidate_scores.get)
+        if "위험" in subset["유형"].iloc[0] or "관리 필요" in subset["유형"].iloc[0]:
+            return "심폐지구력"
+        if "일반" in subset["유형"].iloc[0]:
+            return "유연성"
+        return "순발력"
+
     tabs = st.tabs(visible_rows)
     for tab, label in zip(tabs, visible_rows):
         with tab:
-            title_1, body_1, title_2, body_2 = get_prescription_content(label)
-            subset = result["cluster_source"][result["cluster_source"]["유형"] == label]
-            c1, c2, c3, c4 = st.columns(4)
-            with c1:
-                st.metric("F 빈도", "주 3~5회")
-            with c2:
-                st.metric("I 강도", "중등도" if "위험" not in label else "저강도")
-            with c3:
-                st.metric("T 시간", "30~45분")
-            with c4:
-                st.metric("T 종류", "유산소+근력")
+            subset = cluster_source[cluster_source["유형"] == label]
+            avg_scores = {}
+            normalized_scores = {}
+            for factor_name, column in fitness_cols.items():
+                avg_value = pd.to_numeric(subset[column], errors="coerce").mean()
+                if pd.notna(avg_value):
+                    avg_scores[factor_name] = avg_value
+                    normalized_scores[factor_name] = normalize_factor_score(factor_name, column, avg_value)
+
+            if not normalized_scores:
+                st.warning("5대 체력 요인 데이터가 부족합니다.")
+                continue
+
+            weakest_factor = detect_weakest_factor(subset)
+            fitt = fitt_db.get(weakest_factor, fitt_db["심폐지구력"])
+            group_color = cluster_color_map().get(label, "#0f766e")
+            col_radar, col_fitt = st.columns([0.8, 1.2])
+
+            with col_radar:
+                colors = plot_theme_colors()
+                radar_labels = list(normalized_scores.keys())
+                radar_values = list(normalized_scores.values())
+                fig_radar = go.Figure(
+                    go.Scatterpolar(
+                        r=radar_values + [radar_values[0]],
+                        theta=radar_labels + [radar_labels[0]],
+                        fill="toself",
+                        name=label,
+                        line=dict(color=group_color, width=3),
+                        fillcolor=hex_to_rgba(group_color, 0.22),
+                    )
+                )
+                apply_plotly_theme(fig_radar, height=350, margin=dict(t=30, b=30, l=30, r=30))
+                fig_radar.update_layout(
+                    polar=dict(
+                        bgcolor=colors["plot"],
+                        radialaxis=dict(visible=False, range=[0, 100]),
+                        angularaxis=dict(
+                            gridcolor=colors["grid"],
+                            linecolor=colors["axis"],
+                            tickfont=dict(color="#111827", size=13, family="Noto Sans KR"),
+                        ),
+                    ),
+                    showlegend=False,
+                )
+                st.plotly_chart(fig_radar, use_container_width=True)
+
+            with col_fitt:
+                st.markdown(
+                    f"""
+                    <div class="report-card" style="margin-bottom:15px; border-top: 4px solid {group_color};">
+                        <span class="report-tag {get_group_style(label)}">{label}</span>
+                        <span style="font-size:13px; color:#4b5563; margin-left:10px;">최우선 개선 요인: <b>{weakest_factor}</b></span>
+                        <h4 style="margin-top:10px;">{fitt["title"]}</h4>
+                        <p>{fitt["desc"]}</p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+                c1, c2, c3, c4 = st.columns(4)
+                with c1:
+                    st.metric("F 빈도", fitt["F"])
+                with c2:
+                    st.metric("I 강도", fitt["I"])
+                with c3:
+                    st.metric("T 시간", fitt["T_time"])
+                with c4:
+                    st.metric("T 종류", fitt["T_type"])
+
             st.markdown(
-                f"""
-                <div class="report-card">
-                    <span class="report-tag {get_group_style(label)}">{label}</span>
-                    <h4>{title_1}</h4>
-                    <p><b>대상 학교 수</b> {len(subset)}개교 · <b>{result["x_ax"]}</b> {subset[result["raw_x"]].mean():.1f} · <b>{result["y_ax"]}</b> {subset[result["raw_y"]].mean():.1f}</p>
-                    <p>{body_1}</p>
-                    <p><b>{title_2}</b><br>{body_2}</p>
-                </div>
-                """,
+                "<h5 style='margin-top:10px; font-size:15px; font-weight:700;'>📅 4주 체육 수업 지도안 (예시)</h5>",
                 unsafe_allow_html=True,
             )
             plan_df = pd.DataFrame(
                 {
                     "주차": ["1주차", "2주차", "3주차", "4주차"],
-                    "수업 목표": ["적응", "기초 체력", "지구력 강화", "습관화"],
-                    "지도안 요약": ["가벼운 걷기와 스트레칭", "순환 운동 2세트", "인터벌 러닝과 코어", "자기 기록 관리"],
+                    "수업 목표": ["적응 및 진단", f"{weakest_factor} 기초 다지기", "복합 체력 훈련", "자기 주도 평가"],
+                    "지도안 요약": [
+                        "기초 스트레칭 및 흥미 위주 게임",
+                        f"{fitt['T_type']} 위주의 순환 코스 운영",
+                        f"{weakest_factor} 강화와 타 요소(코어) 결합",
+                        "개인별 목표 달성 확인 및 그룹 체육 활동",
+                    ],
                 }
             )
             st.dataframe(plan_df, use_container_width=True, hide_index=True)
+
+            raw_summary = pd.DataFrame(
+                {
+                    "체력 요인": list(avg_scores.keys()),
+                    "집단 평균": [round(value, 1) for value in avg_scores.values()],
+                    "시각화 점수": [round(normalized_scores[key], 1) for key in avg_scores.keys()],
+                }
+            )
+            st.markdown(
+                "<h5 style='margin-top:12px; font-size:15px; font-weight:700;'>📊 집단별 5대 요인 요약</h5>",
+                unsafe_allow_html=True,
+            )
+            st.dataframe(raw_summary, use_container_width=True, hide_index=True)
 
 
 def render_school_recommendation_page():
