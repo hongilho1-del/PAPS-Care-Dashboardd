@@ -1313,7 +1313,7 @@ current_page = st.session_state["current_page"]
 st.markdown(
     """
     <div class="top-header">
-        <div class="breadcrumb-nav">학교체육 &gt;
+        <div class="breadcrumb-nav">교육행정 &gt; <b>PAPS CARE+ Intelligence</b></div>
     </div>
     """,
     unsafe_allow_html=True,
@@ -1321,7 +1321,7 @@ st.markdown(
 
 st.markdown(
     f"""
-    <div class="breadcrumb">학교체육 &gt; <span>{current_page}</span></div>
+    <div class="breadcrumb">교육행정 &gt; <span>{current_page}</span></div>
     <div class="page-title">🏃 PAPS CARE+</div>
     """,
     unsafe_allow_html=True,
@@ -1330,6 +1330,7 @@ st.markdown(
 st.markdown(
     """
     <div class="notice-card">
+        <b>PAPS CARE+ Intelligence</b><br>
         본 서비스는 학교알리미 교육 공공데이터와 국민체력100 실측 데이터를 활용하여 학교 및 지역 단위의 체력 현황을 분석하는 AI 기반 지능형 대시보드이다. 국민체력100 데이터를 기반으로 알로메트릭 스케일링을 적용해 체격 요인에 따른 점수 편향을 보정하고, 강원특별자치도 내 체력 취약 영역 진단, 맞춤형 FITT 운동 처방, 체육 교육 개선 및 정책 의사결정에 활용 가능한 정보를 제공한다.
     </div>
     """,
@@ -1875,8 +1876,7 @@ def render_school_recommendation_page():
         st.info("선택한 추천 프로그램 또는 학교명 조건에 맞는 학교가 없습니다.")
         return
 
-    st.caption(f"조건에 맞는 추천 대상 {len(rec_df)}건을 표시합니다.")
-    rec_df = rec_df.head(30)
+    st.caption(f"조건에 맞는 추천 대상 {len(rec_df)}건을 모두 표시합니다.")
     for _, row in rec_df.iterrows():
         tag_class = "tag-priority" if row["추천 프로그램"] == "건강체력교실 우선 배정 요망" else "tag-normal"
         tag_text = row["추천 프로그램"]
