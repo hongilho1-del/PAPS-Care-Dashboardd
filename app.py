@@ -737,16 +737,27 @@ def clamp_score(value, lower=0, upper=100):
 def classify_student_profile(height_cm, weight_kg, shuttle_runs, strength_score, flexibility_cm, power_cm):
     height_m = height_cm / 100
     bmi = weight_kg / (height_m ** 2)
-    height_factor = (height_m / 1.65) ** 0.28
-    weight_factor = (58 / weight_kg) ** 0.33
-
-    cardio_score = clamp_score((shuttle_runs * height_factor * weight_factor) / 80 * 100)
-    strength_adjusted = strength_score * (58 / weight_kg) ** 0.45
-    strength_index = clamp_score(strength_adjusted / 55 * 100)
+    
+    # [PAPS CARE+ 강원 실측 데이터 기반 고유 알로메트릭 보정 모델]
+    # 기준 체형: 체중 58kg, 신장 1.65m
+    
+    # 1. 심폐지구력 (셔틀런) 보정: 체중 -0.4545, 신장 3.0425
+    cardio_adj = shuttle_runs / (((weight_kg / 58) ** -0.4545) * ((height_m / 1.65) ** 3.0425))
+    cardio_score = clamp_score(cardio_adj / 80 * 100)
+    
+    # 2. 근력/근지구력 (악력) 보정: 체중 0.0810
+    strength_adj = strength_score / ((weight_kg / 58) ** 0.0810)
+    strength_index = clamp_score(strength_adj / 55 * 100)
+    
+    # 3. 순발력 (제자리멀리뛰기) 보정: 체중 -0.1537, 신장 3.5898
+    power_adj = power_cm / (((weight_kg / 58) ** -0.1537) * ((height_m / 1.65) ** 3.5898))
+    power_index = clamp_score(power_adj / 220 * 100)
+    
+    # 유연성과 BMI 안정성은 기존 로직 유지
     flexibility_index = clamp_score((flexibility_cm + 5) / 35 * 100)
-    power_adjusted = power_cm * (height_cm / 165) ** 0.20 * (58 / weight_kg) ** 0.20
-    power_index = clamp_score(power_adjusted / 220 * 100)
     bmi_stability = clamp_score(100 - abs(bmi - 21.5) * 8)
+    
+    # 종합 AI 보정 체력 지수 산출
     allometric_index = round(
         cardio_score * 0.34
         + strength_index * 0.22
