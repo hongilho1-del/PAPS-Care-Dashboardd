@@ -25,6 +25,10 @@ st.markdown(
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
 
+:root {
+    color-scheme: light dark;
+}
+
 html, body, [class*="css"], .stApp {
     font-family: 'Noto Sans KR', sans-serif;
     background-color: #f5f6fa !important;
@@ -56,28 +60,29 @@ html, body, [class*="css"], .stApp {
     background: #ecfdf5;
     color: #0f766e !important;
     border-bottom: 1px solid #d1fae5;
-    padding: 16px 20px;
-    font-size: 17px;
+    padding: 11px 16px;
+    font-size: 15px;
     font-weight: 900;
     letter-spacing: 0;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .sidebar-group {
-    margin-top: 10px;
-    padding: 0 12px;
+    margin-top: 4px;
+    padding: 0 10px;
 }
 
 .sidebar-section {
-    font-size: 13px;
+    font-size: 11.5px;
     font-weight: 800;
     color: #344054 !important;
     letter-spacing: 0.01em;
-    margin: 10px 0 6px 0;
+    margin: 5px 0 1px 0;
+    line-height: 1.18;
 }
 
 .block-container {
-    padding-top: 2.1rem !important;
+    padding-top: 1rem !important;
     padding-bottom: 2rem !important;
     max-width: 1440px !important;
 }
@@ -233,10 +238,20 @@ html, body, [class*="css"], .stApp {
     border: none;
     background: transparent;
     color: #344054;
-    padding: 0.12rem 0.1rem;
-    font-size: 13px;
+    padding: 0.02rem 0;
+    font-size: 11.5px;
     font-weight: 500;
+    line-height: 1.15;
     box-shadow: none;
+}
+
+[data-testid="stSidebar"] .stButton,
+[data-testid="stSidebar"] [data-testid="stButton"] {
+    margin: 0 !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
+    gap: 0 !important;
 }
 
 [data-testid="stButton"] button:hover {
@@ -248,14 +263,15 @@ html, body, [class*="css"], .stApp {
 
 .menu-active {
     color: #1d4ed8;
-    padding: 0.12rem 0.1rem;
-    font-size: 13px;
+    padding: 0.02rem 0;
+    font-size: 11.5px;
     font-weight: 800;
-    margin-bottom: 4px;
+    line-height: 1.15;
+    margin-bottom: 0;
 }
 
 .section-space {
-    height: 22px;
+    height: 14px;
 }
 
 .insight-card {
@@ -328,6 +344,105 @@ html, body, [class*="css"], .stApp {
     margin-top: 10px;
     color: #344054;
     font-size: 13px;
+}
+
+@media (prefers-color-scheme: dark) {
+    html, body, [class*="css"], .stApp {
+        background-color: #0b1220 !important;
+        color: #e5e7eb !important;
+    }
+
+    [data-testid="stSidebar"] {
+        background-color: #0f172a !important;
+        border-right-color: #1f2937;
+    }
+
+    [data-testid="stSidebar"] label,
+    [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] span,
+    [data-testid="stSidebar"] div {
+        color: #e5e7eb !important;
+    }
+
+    .sidebar-logo {
+        background: #052e2b;
+        color: #5eead4 !important;
+        border-bottom-color: #134e4a;
+    }
+
+    .sidebar-section {
+        color: #cbd5e1 !important;
+    }
+
+    [data-testid="stButton"] button {
+        color: #d1d5db !important;
+    }
+
+    [data-testid="stButton"] button:hover,
+    .menu-active {
+        color: #93c5fd !important;
+    }
+
+    .top-header,
+    .notice-card,
+    .map-card,
+    .report-card,
+    .insight-card,
+    [data-testid="stMetric"] {
+        background: #111827 !important;
+        border-color: #263244 !important;
+        color: #e5e7eb !important;
+        box-shadow: none;
+    }
+
+    .phone-card,
+    .mobile-frame,
+    .mission-row {
+        background: #111827 !important;
+        border-color: #374151 !important;
+        color: #e5e7eb !important;
+    }
+
+    .page-title {
+        color: #5eead4 !important;
+    }
+
+    .breadcrumb,
+    .top-header .breadcrumb-nav,
+    [data-testid="stCaptionContainer"] {
+        color: #cbd5e1 !important;
+    }
+
+    .breadcrumb span,
+    .top-header .breadcrumb-nav b,
+    .insight-card h4,
+    .report-card h4 {
+        color: #f8fafc !important;
+    }
+
+    .notice-card,
+    .notice-card b,
+    .report-card p,
+    .insight-card p,
+    [data-testid="stMarkdownContainer"] p,
+    [data-testid="stMarkdownContainer"] li,
+    [data-testid="stMarkdownContainer"] span {
+        color: #e5e7eb !important;
+    }
+
+    [data-testid="stMetricLabel"] {
+        color: #cbd5e1 !important;
+    }
+
+    [data-testid="stMetricValue"] {
+        color: #93c5fd !important;
+    }
+
+    .alert-card {
+        background: #431407 !important;
+        border-color: #9a3412 !important;
+        color: #fed7aa !important;
+    }
 }
 </style>
 """,
@@ -723,8 +838,99 @@ def build_map_df(cluster_source):
     return map_df
 
 
+def plot_theme_colors():
+    base = None
+    try:
+        context_theme = getattr(getattr(st, "context", None), "theme", None)
+        if isinstance(context_theme, dict):
+            base = context_theme.get("base") or context_theme.get("type")
+        elif context_theme is not None:
+            base = getattr(context_theme, "base", None) or getattr(context_theme, "type", None)
+    except Exception:
+        base = None
+
+    if not base:
+        try:
+            base = st.get_option("theme.base")
+        except Exception:
+            base = "light"
+
+    is_dark = str(base).lower() == "dark"
+    if is_dark:
+        return {
+            "paper": "#111827",
+            "plot": "#111827",
+            "text": "#f8fafc",
+            "muted": "#cbd5e1",
+            "grid": "rgba(203, 213, 225, 0.26)",
+            "axis": "#cbd5e1",
+            "card": "rgba(17, 24, 39, 0.94)",
+            "border": "rgba(148, 163, 184, 0.45)",
+        }
+
+    return {
+        "paper": "#ffffff",
+        "plot": "#ffffff",
+        "text": "#111827",
+        "muted": "#344054",
+        "grid": "rgba(15, 23, 42, 0.14)",
+        "axis": "#475467",
+        "card": "rgba(255, 255, 255, 0.96)",
+        "border": "rgba(210, 215, 225, 0.9)",
+    }
+
+
+def apply_plotly_theme(fig, height=None, margin=None, legend=None):
+    colors = plot_theme_colors()
+    layout = {
+        "paper_bgcolor": colors["paper"],
+        "plot_bgcolor": colors["plot"],
+        "font": dict(color=colors["text"], family="Noto Sans KR"),
+    }
+    if height is not None:
+        layout["height"] = height
+    if margin is not None:
+        layout["margin"] = margin
+    if legend is not None:
+        layout["legend"] = legend
+    fig.update_layout(**layout)
+    return fig
+
+
+def apply_readable_axes(fig, height=None, margin=None, legend=None):
+    colors = plot_theme_colors()
+    apply_plotly_theme(fig, height=height, margin=margin, legend=legend)
+    fig.update_xaxes(
+        showgrid=True,
+        gridcolor=colors["grid"],
+        zeroline=False,
+        showline=True,
+        linecolor=colors["axis"],
+        linewidth=1.4,
+        ticks="outside",
+        tickcolor=colors["axis"],
+        tickfont=dict(color=colors["text"], size=12),
+        title_font=dict(color=colors["text"], size=14),
+    )
+    fig.update_yaxes(
+        showgrid=True,
+        gridcolor=colors["grid"],
+        zeroline=False,
+        showline=True,
+        linecolor=colors["axis"],
+        linewidth=1.4,
+        ticks="outside",
+        tickcolor=colors["axis"],
+        tickfont=dict(color=colors["text"], size=12),
+        title_font=dict(color=colors["text"], size=14),
+    )
+    return fig
+
+
 def render_heatmap(cluster_source):
     map_df = build_map_df(cluster_source)
+    colors = plot_theme_colors()
+    map_style = "carto-darkmatter" if colors["paper"] != "#ffffff" else "carto-positron"
     fig = px.density_mapbox(
         map_df,
         lat="lat",
@@ -733,7 +939,7 @@ def render_heatmap(cluster_source):
         radius=42,
         center=dict(lat=37.75, lon=128.3),
         zoom=6.85,
-        mapbox_style="carto-positron",
+        mapbox_style=map_style,
         hover_name="시군",
         hover_data={
             "순수학교명": True,
@@ -788,11 +994,11 @@ def render_heatmap(cluster_source):
         text="<b>관측치 기반 취약 체력 밀집도</b>",
         showarrow=False,
         align="left",
-        bgcolor="rgba(255,255,255,0.95)",
-        bordercolor="rgba(210,215,225,0.9)",
+        bgcolor=colors["card"],
+        bordercolor=colors["border"],
         borderwidth=1,
         borderpad=10,
-        font=dict(size=12, color="#1a2233", family="Noto Sans KR"),
+        font=dict(size=12, color=colors["text"], family="Noto Sans KR"),
     )
     fig.add_annotation(
         x=0.98,
@@ -809,22 +1015,19 @@ def render_heatmap(cluster_source):
         ),
         showarrow=False,
         align="left",
-        bgcolor="rgba(255,255,255,0.95)",
-        bordercolor="rgba(210,215,225,0.9)",
+        bgcolor=colors["card"],
+        bordercolor=colors["border"],
         borderwidth=1,
         borderpad=10,
-        font=dict(size=11, color="#1a2233", family="Noto Sans KR"),
+        font=dict(size=11, color=colors["text"], family="Noto Sans KR"),
     )
-    fig.update_layout(
-        height=620,
-        margin=dict(t=0, b=0, l=0, r=0),
-        coloraxis_showscale=False,
-        paper_bgcolor="rgba(0,0,0,0)",
-    )
+    apply_plotly_theme(fig, height=620, margin=dict(t=0, b=0, l=0, r=0))
+    fig.update_layout(coloraxis_showscale=False)
     st.plotly_chart(fig, use_container_width=True)
 
 
 def render_scatter(cluster_source, raw_x, raw_y, x_ax, y_ax):
+    colors = plot_theme_colors()
     fig = px.scatter(
         cluster_source,
         x=raw_x,
@@ -845,31 +1048,19 @@ def render_scatter(cluster_source, raw_x, raw_y, x_ax, y_ax):
     fig.update_traces(
         marker=dict(size=16, opacity=0.88, line=dict(width=1.1, color="white")),
         textposition="top center",
-        textfont=dict(size=10, color="#254258"),
+        textfont=dict(size=10, color=colors["text"]),
     )
-    fig.update_layout(
+    apply_readable_axes(
+        fig,
         height=620,
         margin=dict(t=10, b=10, l=10, r=10),
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        xaxis=dict(
-            showgrid=True,
-            gridcolor="rgba(15,23,42,0.10)",
-            zeroline=False,
-            showline=True,
-            linecolor="#475467",
-            tickfont=dict(color="#111827", size=12),
-            title=dict(font=dict(color="#111827", size=14)),
-        ),
-        yaxis=dict(
-            showgrid=True,
-            gridcolor="rgba(15,23,42,0.10)",
-            zeroline=False,
-            showline=True,
-            linecolor="#475467",
-            tickfont=dict(color="#111827", size=12),
-            title=dict(font=dict(color="#111827", size=14)),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            font=dict(color=colors["text"]),
         ),
     )
     st.plotly_chart(fig, use_container_width=True)
@@ -887,6 +1078,7 @@ def cluster_color_map():
 
 
 def render_cluster_pie(cluster_source):
+    colors = plot_theme_colors()
     share_df = cluster_source["유형"].value_counts().rename_axis("유형").reset_index(name="학교 수")
     fig = px.pie(
         share_df,
@@ -899,8 +1091,8 @@ def render_cluster_pie(cluster_source):
     fig.update_traces(
         textposition="outside",
         textinfo="label+percent",
-        textfont=dict(size=12, color="#111827"),
-        marker=dict(line=dict(color="#ffffff", width=3)),
+        textfont=dict(size=12, color=colors["text"]),
+        marker=dict(line=dict(color=colors["paper"], width=3)),
         pull=[0.04 if label in ["고위험군", "관리 필요군"] else 0 for label in share_df["유형"]],
     )
     fig.add_annotation(
@@ -908,26 +1100,23 @@ def render_cluster_pie(cluster_source):
         x=0.5,
         y=0.5,
         showarrow=False,
-        font=dict(size=15, color="#111827", family="Noto Sans KR"),
+        font=dict(size=15, color=colors["text"], family="Noto Sans KR"),
         align="center",
     )
-    fig.update_layout(
+    apply_plotly_theme(
+        fig,
         height=430,
         margin=dict(t=24, b=24, l=24, r=24),
-        paper_bgcolor="white",
-        plot_bgcolor="white",
-        showlegend=True,
         legend=dict(
             orientation="h",
             yanchor="bottom",
             y=-0.16,
             xanchor="center",
             x=0.5,
-            font=dict(size=11, color="#344054"),
+            font=dict(size=11, color=colors["muted"]),
         ),
-        uniformtext_minsize=10,
-        uniformtext_mode="hide",
     )
+    fig.update_layout(showlegend=True, uniformtext_minsize=10, uniformtext_mode="hide")
     st.plotly_chart(fig, use_container_width=True)
 
 
@@ -952,7 +1141,7 @@ def render_yearly_trend(cluster_source):
         labels={"취약군비율": "취약군 비율(%)"},
     )
     fig.update_traces(line=dict(color="#0f766e", width=3), marker=dict(size=9))
-    fig.update_layout(height=360, plot_bgcolor="white", paper_bgcolor="white")
+    apply_readable_axes(fig, height=360, margin=dict(t=50, b=24, l=24, r=24))
     st.plotly_chart(fig, use_container_width=True)
 
 
@@ -972,11 +1161,12 @@ def set_page(page_name):
     st.session_state["current_page"] = page_name
 
 
-def render_nav_button(page_name):
+def render_nav_button(page_name, label=None):
+    display_name = label or page_name
     if st.session_state.get("current_page") == page_name:
-        st.markdown(f'<div class="menu-active">{page_name}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="menu-active">{display_name}</div>', unsafe_allow_html=True)
     else:
-        st.button(page_name, key=f"nav_{page_name}", on_click=set_page, args=(page_name,))
+        st.button(display_name, key=f"nav_{page_name}", on_click=set_page, args=(page_name,))
 
 
 raw_df, meta, load_error = load_raw_data()
@@ -991,34 +1181,34 @@ if "current_page" not in st.session_state:
 with st.sidebar:
     st.markdown('<div class="sidebar-logo">🏃 PAPS CARE+</div>', unsafe_allow_html=True)
     st.markdown('<div class="sidebar-group">', unsafe_allow_html=True)
-    st.markdown('<div class="sidebar-section">1. 📊 통합 대시보드 (Overview)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-section">1. 📊 통합 대시보드</div>', unsafe_allow_html=True)
     render_nav_button("도내 체력 현황 요약")
-    render_nav_button("체력 취약망 지도 (Heatmap)")
+    render_nav_button("체력 취약망 지도 (Heatmap)", "체력 취약망 지도")
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="sidebar-group">', unsafe_allow_html=True)
-    st.markdown('<div class="sidebar-section">2. 🤖 AI 체육 데이터 분석 (Analytics)</div>', unsafe_allow_html=True)
-    render_nav_button("체격 보정 평가 모델 (Allometric)")
+    st.markdown('<div class="sidebar-section">2. 🤖 AI 체육 데이터 분석</div>', unsafe_allow_html=True)
+    render_nav_button("체격 보정 평가 모델 (Allometric)", "체격 보정 평가 모델")
     render_nav_button("AI 다차원 군집 분석")
     render_nav_button("종목/학년별 상세 통계")
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="sidebar-group">', unsafe_allow_html=True)
-    st.markdown('<div class="sidebar-section">3. 🏃‍♂️ 맞춤형 체력 증진 (Prescription)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-section">3. 🏃‍♂️ 맞춤형 체력 증진</div>', unsafe_allow_html=True)
     render_nav_button("집단별 FITT 처방")
-    render_nav_button("학교별 교육 프로그램 추천")
+    render_nav_button("학교별 교육 프로그램 추천", "학교별 프로그램 추천")
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="sidebar-group">', unsafe_allow_html=True)
-    st.markdown('<div class="sidebar-section">4. 🏢 체육 행정 및 정책 지원 (Administration)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-section">4. 🏢 행정·정책 지원</div>', unsafe_allow_html=True)
     render_nav_button("체육 강사 우선 배치망")
-    render_nav_button("지역별 예산 집행 타당성")
+    render_nav_button("지역별 예산 집행 타당성", "지역별 예산 타당성")
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="sidebar-group">', unsafe_allow_html=True)
-    st.markdown('<div class="sidebar-section">5. 📱 학생/학부모 서비스 (B2C Portal)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-section">5. 📱 학생/학부모 서비스</div>', unsafe_allow_html=True)
     render_nav_button("나의 AI 체력 진단")
-    render_nav_button("4주 맞춤 운동 플랜 발급")
+    render_nav_button("4주 맞춤 운동 플랜 발급", "4주 운동 플랜 발급")
     st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -1086,7 +1276,7 @@ def render_overview():
             """
             <div class="insight-card">
                 <h4>운영 메모</h4>
-                <p>복잡한 엑셀을 열지 않아도 도내 체력 현황, 취약군 규모, 우선 관리 방향을 첫 화면에서 확인할 수 있습니다.</p>
+                <p>오늘 기준 도내 취약 체력 신호를 요약한 화면입니다. 취약군 비율과 AI 고위험군 추정치를 함께 확인하고, 지도·처방·행정 지원 메뉴로 바로 이어지는 의사결정 출발점으로 활용할 수 있습니다.</p>
             </div>
             """,
             unsafe_allow_html=True,
@@ -1158,7 +1348,7 @@ def render_allometric_page():
             color_discrete_map=cluster_color_map(),
             title="원점수 기준 분포",
         )
-        fig_raw.update_layout(height=520, plot_bgcolor="white", paper_bgcolor="white")
+        apply_readable_axes(fig_raw, height=520, margin=dict(t=56, b=28, l=28, r=20))
         st.plotly_chart(fig_raw, use_container_width=True)
     with right:
         adjusted_y = "보정 심폐지표" if correction_on else result["raw_y"]
@@ -1171,7 +1361,7 @@ def render_allometric_page():
             color_discrete_map=cluster_color_map(),
             title="체격 보정 후 분포" if correction_on else "보정 전 비교 화면",
         )
-        fig_adjusted.update_layout(height=520, plot_bgcolor="white", paper_bgcolor="white")
+        apply_readable_axes(fig_adjusted, height=520, margin=dict(t=56, b=28, l=28, r=20))
         st.plotly_chart(fig_adjusted, use_container_width=True)
     st.markdown(
         """
@@ -1219,9 +1409,10 @@ def render_detail_page():
     with left:
         chart_df = detail_df.groupby(["학년", "성별"])[metric_col].mean().reset_index()
         fig = px.bar(chart_df, x="학년", y=metric_col, color="성별", barmode="group", title=f"{metric_choice} 학년/성별 평균")
-        fig.update_layout(height=500)
+        apply_readable_axes(fig, height=500, margin=dict(t=58, b=34, l=36, r=20))
         st.plotly_chart(fig, use_container_width=True)
     with right:
+        colors = plot_theme_colors()
         school_options = sorted(detail_df["순수학교명"].dropna().unique())
         selected_school = st.selectbox("학교 검색", school_options)
         school_df = detail_df[detail_df["순수학교명"] == selected_school]
@@ -1237,10 +1428,23 @@ def render_detail_page():
                 line=dict(color="#0f766e", width=3),
             )
         )
+        apply_plotly_theme(fig_radar, height=500, margin=dict(t=58, b=34, l=34, r=34))
         fig_radar.update_layout(
             title="학교별 5대 체력 요소 밸런스",
-            height=500,
-            polar=dict(radialaxis=dict(visible=True)),
+            polar=dict(
+                bgcolor=colors["plot"],
+                radialaxis=dict(
+                    visible=True,
+                    gridcolor=colors["grid"],
+                    linecolor=colors["axis"],
+                    tickfont=dict(color=colors["text"]),
+                ),
+                angularaxis=dict(
+                    gridcolor=colors["grid"],
+                    linecolor=colors["axis"],
+                    tickfont=dict(color=colors["text"], size=12),
+                ),
+            ),
             showlegend=False,
         )
         st.plotly_chart(fig_radar, use_container_width=True)
@@ -1361,6 +1565,8 @@ def render_budget_page():
     budget_df["1인당 체육 예산"] = (120 - budget_df["취약비율"] * 0.8).clip(lower=35).round(1)
     budget_df["지역 취약도 점수"] = budget_df["취약비율"]
     fig = px.bar(budget_df.sort_values("취약비율", ascending=False), x="시군", y="취약비율", title="지역별 취약 비율")
+    apply_readable_axes(fig, height=430, margin=dict(t=58, b=56, l=40, r=20))
+    fig.update_xaxes(tickangle=-30)
     st.plotly_chart(fig, use_container_width=True)
     compare_df = budget_df.melt(
         id_vars="시군",
@@ -1369,7 +1575,8 @@ def render_budget_page():
         value_name="값",
     )
     fig_compare = px.bar(compare_df, x="시군", y="값", color="지표", barmode="group", title="1인당 체육 예산과 지역 취약도 비교")
-    fig_compare.update_layout(height=420)
+    apply_readable_axes(fig_compare, height=430, margin=dict(t=58, b=56, l=40, r=20))
+    fig_compare.update_xaxes(tickangle=-30)
     st.plotly_chart(fig_compare, use_container_width=True)
     blind_spot = budget_df.sort_values(["지역 취약도 점수", "1인당 체육 예산"], ascending=[False, True]).head(1)
     if not blind_spot.empty:
@@ -1396,6 +1603,7 @@ def render_b2c_page():
     title_1, body_1, title_2, body_2 = get_prescription_content(cluster_label)
 
     with right_mock:
+        colors = plot_theme_colors()
         gauge_value = min(max(allometric_index * 12, 0), 100)
         gauge = go.Figure(
             go.Indicator(
@@ -1413,7 +1621,12 @@ def render_b2c_page():
                 },
             )
         )
-        gauge.update_layout(height=280, margin=dict(t=40, b=10, l=20, r=20))
+        apply_plotly_theme(gauge, height=280, margin=dict(t=40, b=10, l=20, r=20))
+        gauge.update_traces(
+            title={"font": {"color": colors["text"]}},
+            number={"font": {"color": colors["text"]}},
+            gauge={"axis": {"tickcolor": colors["axis"], "tickfont": {"color": colors["text"]}}},
+        )
         st.plotly_chart(gauge, use_container_width=True)
         st.markdown(
             f"""
