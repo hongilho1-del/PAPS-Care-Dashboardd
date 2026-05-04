@@ -53,26 +53,27 @@ html, body, [class*="css"], .stApp {
 }
 
 .sidebar-logo {
-    background: #1a2233;
-    color: #ffffff !important;
-    padding: 18px 20px;
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    margin-bottom: 8px;
+    background: #ecfdf5;
+    color: #0f766e !important;
+    border-bottom: 1px solid #d1fae5;
+    padding: 16px 20px;
+    font-size: 17px;
+    font-weight: 900;
+    letter-spacing: 0;
+    margin-bottom: 4px;
 }
 
 .sidebar-group {
-    margin-top: 20px;
+    margin-top: 10px;
     padding: 0 12px;
 }
 
 .sidebar-section {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 800;
     color: #344054 !important;
     letter-spacing: 0.01em;
-    margin: 18px 0 12px 0;
+    margin: 10px 0 6px 0;
 }
 
 .block-container {
@@ -232,7 +233,7 @@ html, body, [class*="css"], .stApp {
     border: none;
     background: transparent;
     color: #344054;
-    padding: 0.22rem 0.1rem;
+    padding: 0.12rem 0.1rem;
     font-size: 13px;
     font-weight: 500;
     box-shadow: none;
@@ -247,10 +248,10 @@ html, body, [class*="css"], .stApp {
 
 .menu-active {
     color: #1d4ed8;
-    padding: 0.22rem 0.1rem;
+    padding: 0.12rem 0.1rem;
     font-size: 13px;
     font-weight: 800;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
 }
 
 .section-space {
@@ -891,13 +892,42 @@ def render_cluster_pie(cluster_source):
         share_df,
         names="유형",
         values="학교 수",
-        hole=0.52,
+        hole=0.64,
         color="유형",
         color_discrete_map=cluster_color_map(),
-        title="체력군 구성 비율",
     )
-    fig.update_traces(textposition="inside", textinfo="percent+label")
-    fig.update_layout(height=420, margin=dict(t=50, b=20, l=20, r=20), paper_bgcolor="white")
+    fig.update_traces(
+        textposition="outside",
+        textinfo="label+percent",
+        textfont=dict(size=12, color="#111827"),
+        marker=dict(line=dict(color="#ffffff", width=3)),
+        pull=[0.04 if label in ["고위험군", "관리 필요군"] else 0 for label in share_df["유형"]],
+    )
+    fig.add_annotation(
+        text="<b>체력군</b><br>구성 비율",
+        x=0.5,
+        y=0.5,
+        showarrow=False,
+        font=dict(size=15, color="#111827", family="Noto Sans KR"),
+        align="center",
+    )
+    fig.update_layout(
+        height=430,
+        margin=dict(t=24, b=24, l=24, r=24),
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+        showlegend=True,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=-0.16,
+            xanchor="center",
+            x=0.5,
+            font=dict(size=11, color="#344054"),
+        ),
+        uniformtext_minsize=10,
+        uniformtext_mode="hide",
+    )
     st.plotly_chart(fig, use_container_width=True)
 
 
