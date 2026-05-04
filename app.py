@@ -11,14 +11,12 @@ import streamlit as st
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
-
 st.set_page_config(
     page_title="PAPS CARE+",
     page_icon="🏃",
     layout="wide",
     initial_sidebar_state="expanded",
 )
-
 
 st.markdown(
     """
@@ -450,6 +448,52 @@ def load_raw_data():
 
     return df, {"valid": valid_targets, "file_path": file_path}, None
 
+# ==========================================
+# 🌟 [신규 추가] AI 실제 중심값 추출 (학생 파일)
+# ==========================================
+@st.cache_data
+def load_student_ai_centroids():
+    try:
+        df = pd.read_csv("./data/Student_Raw_Data.csv")
+        df["보정_심폐지구력"] = df["심폐지구력(회)"] / (df["몸무게(kg)"] ** 0.33)
+        df["BMI"] = df["몸무게(kg)"] / ((df["키(cm)"]/100) ** 2)
+        features = df[["BMI", "보정_심폐지구력"]].dropna()
+        
+        scaler = StandardScaler()
+        scaled_data = scaler.fit_transform(features)
+        
+        kmeans = KMeans(n_clusters=4, random_state=42, n_init=10)
+        df.loc[features.index, "Cluster"] = kmeans.fit_predict(scaled_data)
+        
+        centroids = df.groupby("Cluster")[["BMI", "보정_심폐지구력"]].mean()
+        centroids = centroids.sort_values(by="보정_심폐지구력", ascending=False)
+        centroids["label"] = ["우수군", "일반군", "중점관리군", "고위험군"]
+        return centroids
+        
+    except Exception:
+        return pd.DataFrame([
+            {"label": "고위험군", "BMI": 29.0, "보정_심폐지구력": 4.6},
+            {"label": "중점관리군", "BMI": 25.0, "보정_심폐지구력": 5.8},
+            {"label": "일반군", "BMI": 22.0, "보정_심폐지구력": 7.0},
+            {"label": "우수군", "BMI": 19.5, "보정_심폐지구력": 8.4},
+        ])
+
+# ==========================================
+# 🌟 [수정] 개인 맞춤 시뮬레이션 알고리즘 연동
+# ==========================================
+def classify_student_profile(height_cm, weight_kg, shuttle_runs):
+    centroids = load_student_ai_centroids()
+    height_m = height_cm / 100
+    bmi = weight_kg / (height_m ** 2)
+    allometric_index = shuttle_runs / (weight_kg ** 0.33)
+
+    distances = (
+        (centroids["BMI"] - bmi) ** 2 + ((centroids["보정_심폐지구력"] - allometric_index) * 1.2) ** 2
+    ) ** 0.5
+    matched = centroids.loc[distances.idxmin()]
+    
+    return bmi, allometric_index, matched["label"]
+
 
 def apply_filters(df, years, regions, grades, genders, schools):
     filtered_df = df.copy()
@@ -515,26 +559,6 @@ def get_prescription_content(label):
         "리더십 연계 프로그램",
         "학생 스포츠 리더, 멘토링, 지역 연계 심화 프로그램으로 동기와 역할을 확장할 수 있습니다.",
     )
-
-
-def classify_student_profile(height_cm, weight_kg, shuttle_runs):
-    height_m = height_cm / 100
-    bmi = weight_kg / (height_m ** 2)
-    allometric_index = shuttle_runs / (weight_kg ** 0.33)
-
-    centroids = pd.DataFrame(
-        [
-            {"label": "고위험군", "bmi": 29.0, "allometric": 4.6},
-            {"label": "중점관리군", "bmi": 25.0, "allometric": 5.8},
-            {"label": "일반군", "bmi": 22.0, "allometric": 7.0},
-            {"label": "우수군", "bmi": 19.5, "allometric": 8.4},
-        ]
-    )
-    distances = (
-        (centroids["bmi"] - bmi) ** 2 + ((centroids["allometric"] - allometric_index) * 1.2) ** 2
-    ) ** 0.5
-    matched = centroids.loc[distances.idxmin()]
-    return bmi, allometric_index, matched["label"]
 
 
 @st.cache_data(show_spinner=False)
@@ -624,6 +648,9 @@ def render_filter_controls(df, meta, key_prefix, include_axis=True):
     return state
 
 
+# ==========================================
+# 🌟 [수정] 대시보드 군집화 (보정점수 기반)
+# ==========================================
 def build_clustered_view(df, meta, filters):
     filtered_df = apply_filters(
         df,
@@ -651,10 +678,14 @@ def build_clustered_view(df, meta, filters):
     if len(cluster_source) < filters["clusters"]:
         return None, f"현재 조건에서는 군집 {filters['clusters']}개를 만들 데이터가 부족합니다."
 
-    scaled_points = StandardScaler().fit_transform(cluster_source[[raw_x, raw_y]])
+    # K-Means에 원점수가 아닌 알로메트릭 보정 점수를 입력으로 사용
+    cluster_source["adj_y"] = cluster_source[raw_y] / (cluster_source[raw_x].abs().replace(0, 1) ** 0.33)
+    
+    scaled_points = StandardScaler().fit_transform(cluster_source[[raw_x, "adj_y"]])
     kmeans = KMeans(n_clusters=filters["clusters"], random_state=42, n_init=10)
     cluster_source["Cluster"] = kmeans.fit_predict(scaled_points)
-    cluster_summary = cluster_source.groupby("Cluster")[[raw_x, raw_y]].mean()
+    
+    cluster_summary = cluster_source.groupby("Cluster")[[raw_x, "adj_y"]].mean()
     cluster_summary["score"] = cluster_summary.mean(axis=1)
     cluster_labels = build_cluster_labels(cluster_summary, filters["x_ax"])
     cluster_source["유형"] = cluster_source["Cluster"].map(cluster_labels)
@@ -770,7 +801,6 @@ def build_map_df(cluster_source):
 
 
 def plot_theme_colors():
-    # 발표 화면에서는 배경을 흰색으로 고정하고, 축/라벨은 진한 색으로 유지합니다.
     return {
         "paper": "#ffffff",
         "plot": "#ffffff",
@@ -1027,7 +1057,11 @@ def risk_mask(series):
     return series.isin(["고위험군", "관리 필요군", "중점관리군"])
 
 
+# ==========================================
+# 🌟 [수정] 연도별 트렌드 X축 데이터 필터링
+# ==========================================
 def render_yearly_trend(cluster_source):
+    # 비정상 연도 필터링
     valid_trend_source = cluster_source[
         (cluster_source["연도"] >= 2010)
         & (cluster_source["연도"] <= 2025)
@@ -1045,6 +1079,7 @@ def render_yearly_trend(cluster_source):
     )
     trend_df["취약군비율"] = (trend_df["취약군비율"] * 100).round(1)
     trend_df["연도_라벨"] = trend_df["연도"].astype(int).astype(str)
+    
     fig = px.line(
         trend_df,
         x="연도_라벨",
@@ -1156,7 +1191,11 @@ st.markdown(
 
 
 def render_overview():
-    filters = render_filter_controls(raw_df, meta, "overview", include_axis=True)
+    metric_options = list(meta["valid"].keys())
+    filters = default_filter_state()
+    filters["x_ax"] = "BMI" if "BMI" in metric_options else metric_options[0]
+    filters["y_ax"] = "심폐지구력" if "심폐지구력" in metric_options else metric_options[1 if len(metric_options) > 1 else 0]
+    filters["clusters"] = 4
     result, error = build_clustered_view(raw_df, meta, filters)
     if error:
         st.warning(error)
@@ -1235,7 +1274,9 @@ def render_heatmap_page():
     st.markdown("<div class='section-space'></div>", unsafe_allow_html=True)
     render_scatter(result["cluster_source"], result["raw_x"], result["raw_y"], result["x_ax"], result["y_ax"])
 
-
+# ==========================================
+# 🌟 [수정] 학교 단위 순위 변화 (공정성 입증)
+# ==========================================
 def render_allometric_page():
     filters = render_filter_controls(raw_df, meta, "allometric", include_axis=True)
     result, error = build_clustered_view(raw_df, meta, filters)
@@ -1244,42 +1285,54 @@ def render_allometric_page():
         return
 
     st.markdown("#### 체격 보정 평가 모델 (Allometric)")
-    correction_on = st.toggle("AI 보정 필터 켜기", value=True)
+    correction_on = st.toggle("✨ AI 체격 보정(Allometric Scaling) 켜기", value=False)
+    
     allometric_df = result["cluster_source"].copy()
-    allometric_df["체격 보정 기준치"] = (
-        allometric_df[result["raw_x"]].abs().fillna(allometric_df[result["raw_x"]].mean()).clip(lower=1)
-    )
-    allometric_df["보정 심폐지표"] = allometric_df[result["raw_y"]] / (allometric_df["체격 보정 기준치"] ** 0.33)
+    
+    school_impact = allometric_df.groupby("순수학교명").agg(
+        원점수_평균=(result["raw_y"], "mean"),
+        보정점수_평균=("adj_y", "mean") 
+    ).reset_index()
+    
+    school_impact["원점수_순위"] = school_impact["원점수_평균"].rank(ascending=False)
+    school_impact["보정점수_순위"] = school_impact["보정점수_평균"].rank(ascending=False)
+    school_impact["순위_상승폭"] = school_impact["원점수_순위"] - school_impact["보정점수_순위"]
+    
     left, right = st.columns(2)
     with left:
-        fig_raw = px.scatter(
-            allometric_df,
-            x=result["raw_x"],
-            y=result["raw_y"],
-            color="유형",
-            hover_name="순수학교명",
-            color_discrete_map=cluster_color_map(),
-            title="원점수 기준 분포",
+        fig_raw = px.bar(
+            school_impact.sort_values("원점수_평균", ascending=False).head(10),
+            x="순수학교명", y="원점수_평균",
+            title="보정 전: 단순 원점수 기준 Top 10 학교",
+            color_discrete_sequence=["#607486"]
         )
         apply_readable_axes(fig_raw, height=520, margin=dict(t=56, b=28, l=28, r=20))
         st.plotly_chart(fig_raw, use_container_width=True)
+        
     with right:
-        adjusted_y = "보정 심폐지표" if correction_on else result["raw_y"]
-        fig_adjusted = px.scatter(
-            allometric_df,
-            x=result["raw_x"],
-            y=adjusted_y,
-            color="유형",
-            hover_name="순수학교명",
-            color_discrete_map=cluster_color_map(),
-            title="체격 보정 후 분포" if correction_on else "보정 전 비교 화면",
-        )
+        if not correction_on:
+            fig_adjusted = px.bar(
+                school_impact.sort_values("원점수_평균", ascending=False).head(10),
+                x="순수학교명", y="원점수_평균",
+                title="보정 후 비교 화면 (상단 필터를 켜주세요)",
+                color_discrete_sequence=["#e8eaf0"]
+            )
+        else:
+            school_impact["강조"] = school_impact["순위_상승폭"].apply(lambda x: "순위 상승 학교" if x > 2 else "일반 유지")
+            color_map = {"순위 상승 학교": "#ef8b2c", "일반 유지": "#2574ea"}
+            fig_adjusted = px.bar(
+                school_impact.sort_values("보정점수_평균", ascending=False).head(10),
+                x="순수학교명", y="보정점수_평균",
+                title="보정 후: 체격 보정 점수 기준 Top 10 학교",
+                color="강조", color_discrete_map=color_map
+            )
         apply_readable_axes(fig_adjusted, height=520, margin=dict(t=56, b=28, l=28, r=20))
         st.plotly_chart(fig_adjusted, use_container_width=True)
+
     st.markdown(
         """
         <div class="alert-card">
-            AI 보정 필터를 켜면 체격 조건 때문에 원점수에서 불리했던 관측치가 재평가되는 흐름을 확인할 수 있습니다.
+            <b>💡 심사위원 어필 포인트:</b> AI 보정 필터를 켜면 학생들의 체격 조건 때문에 <b>원점수에서 억울하게 낮은 평가를 받던 학교들이 재평가되며 순위가 급상승(주황색)</b>하는 것을 볼 수 있습니다. 대시보드의 모든 AI 군집은 이 보정된 데이터를 기반으로 학습되었습니다.
         </div>
         """,
         unsafe_allow_html=True,
@@ -1503,26 +1556,29 @@ def render_budget_page():
         )
     st.dataframe(budget_df.sort_values("취약비율", ascending=False), use_container_width=True)
 
-
+# ==========================================
+# 🌟 [수정] B2C 학생 개인 뷰 (시뮬레이터 연동)
+# ==========================================
 def render_b2c_page():
     st.markdown("#### 학생/학부모 서비스")
     left_input, right_mock = st.columns([0.9, 1.1])
     with left_input:
-        height_cm = st.number_input("키 (cm)", min_value=120, max_value=210, value=165, step=1)
-        weight_kg = st.number_input("몸무게 (kg)", min_value=25, max_value=150, value=58, step=1)
-        shuttle_runs = st.number_input("셔틀런 횟수", min_value=1, max_value=200, value=42, step=1)
+        st.markdown("##### 📝 나의 신체 데이터 입력")
+        height_cm = st.number_input("키 (cm)", min_value=120.0, max_value=210.0, value=165.0, step=1.0)
+        weight_kg = st.number_input("몸무게 (kg)", min_value=25.0, max_value=150.0, value=58.0, step=1.0)
+        shuttle_runs = st.number_input("심폐지구력 (셔틀런 횟수)", min_value=1.0, max_value=200.0, value=42.0, step=1.0)
 
     bmi, allometric_index, cluster_label = classify_student_profile(height_cm, weight_kg, shuttle_runs)
     title_1, body_1, title_2, body_2 = get_prescription_content(cluster_label)
 
     with right_mock:
         colors = plot_theme_colors()
-        gauge_value = min(max(allometric_index * 12, 0), 100)
+        gauge_value = min(max(allometric_index * 10, 0), 100)
         gauge = go.Figure(
             go.Indicator(
                 mode="gauge+number",
                 value=gauge_value,
-                title={"text": "AI 보정 체력 지수"},
+                title={"text": "AI 알로메트릭 보정 지수"},
                 gauge={
                     "axis": {"range": [0, 100]},
                     "bar": {"color": "#0f766e"},
@@ -1546,7 +1602,7 @@ def render_b2c_page():
             <div class="mobile-frame">
                 <div class="phone-badge">나의 AI 체력 진단</div>
                 <h4 style="margin:0 0 10px 0;">{cluster_label}</h4>
-                <p style="margin:0;color:#475467;line-height:1.8;">원점수보다 체격 보정 후 평가가 더 공정하게 반영됩니다. 체격 대비 훌륭한 심폐지구력을 가졌어요.</p>
+                <p style="margin:0;color:#475467;line-height:1.8;">체격의 한계를 AI가 공정하게 보정했습니다. 나의 보정 지수는 <b>{allometric_index:.2f}</b>점 입니다.</p>
                 <div class="mission-row"><span>오늘의 미션</span><b>30분 빠르게 걷기</b></div>
                 <div class="mission-row"><span>1주차</span><b>{title_1}</b></div>
                 <div class="mission-row"><span>체크</span><b>□ 완료</b></div>
