@@ -713,7 +713,7 @@ def render_scatter(cluster_source, raw_x, raw_y, x_ax, y_ax):
             showline=True,
             linecolor="#475467",
             tickfont=dict(color="#111827", size=12),
-            titlefont=dict(color="#111827", size=14),
+            title=dict(font=dict(color="#111827", size=14)),
         ),
         yaxis=dict(
             showgrid=True,
@@ -722,7 +722,7 @@ def render_scatter(cluster_source, raw_x, raw_y, x_ax, y_ax):
             showline=True,
             linecolor="#475467",
             tickfont=dict(color="#111827", size=12),
-            titlefont=dict(color="#111827", size=14),
+            title=dict(font=dict(color="#111827", size=14)),
         ),
     )
     st.plotly_chart(fig, use_container_width=True)
