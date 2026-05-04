@@ -1028,20 +1028,30 @@ def risk_mask(series):
 
 
 def render_yearly_trend(cluster_source):
+    valid_trend_source = cluster_source[
+        (cluster_source["연도"] >= 2010)
+        & (cluster_source["연도"] <= 2025)
+    ].copy()
+
+    if valid_trend_source.empty:
+        st.info("차트를 그릴 수 있는 유효한 연도 데이터가 없습니다.")
+        return
+
     trend_df = (
-        cluster_source.assign(취약군=risk_mask(cluster_source["유형"]))
+        valid_trend_source.assign(취약군=risk_mask(valid_trend_source["유형"]))
         .groupby("연도")
         .agg(분석학교수=("순수학교명", "nunique"), 취약군비율=("취약군", "mean"))
         .reset_index()
     )
     trend_df["취약군비율"] = (trend_df["취약군비율"] * 100).round(1)
+    trend_df["연도_라벨"] = trend_df["연도"].astype(int).astype(str)
     fig = px.line(
         trend_df,
-        x="연도",
+        x="연도_라벨",
         y="취약군비율",
         markers=True,
         title="연도별 저체력·취약군 비율 변화",
-        labels={"취약군비율": "취약군 비율(%)"},
+        labels={"취약군비율": "취약군 비율(%)", "연도_라벨": "연도"},
     )
     fig.update_traces(line=dict(color="#0f766e", width=3), marker=dict(size=9))
     apply_readable_axes(fig, height=360, margin=dict(t=50, b=24, l=24, r=24))
