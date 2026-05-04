@@ -11,12 +11,14 @@ import streamlit as st
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
+
 st.set_page_config(
     page_title="PAPS CARE+",
     page_icon="🏃",
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
 
 st.markdown(
     """
@@ -136,8 +138,8 @@ section.main {
 }
 
 .notice-card {
-    background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
-    border: 1px solid #e8eaf0;
+    background: linear-gradient(135deg, #f0fdfa 0%, #f8fafc 100%);
+    border: 1px solid #ccfbf1;
     border-radius: 12px;
     padding: 16px 18px;
     color: #344054;
@@ -147,17 +149,17 @@ section.main {
 }
 
 .map-card {
-    background: #ffffff;
+    background: linear-gradient(135deg, #f8fafc 0%, #eef6ff 100%);
     border-radius: 14px;
     padding: 4px;
     box-shadow: 0 2px 12px rgba(0,0,0,0.07);
     overflow: hidden;
-    border: 1px solid #eef1f5;
+    border: 1px solid #dbeafe;
 }
 
 .report-card {
-    background: #ffffff;
-    border: 1px solid #e8eaf0;
+    background: linear-gradient(135deg, #ffffff 0%, #f7f3ff 100%);
+    border: 1px solid #e9d5ff;
     border-radius: 14px;
     padding: 18px;
     box-shadow: 0 2px 12px rgba(0,0,0,0.05);
@@ -214,8 +216,8 @@ section.main {
 }
 
 [data-testid="stMetric"] {
-    background: #ffffff;
-    border: 1px solid #e8eaf0;
+    background: linear-gradient(135deg, #f8fbff 0%, #eefdf7 100%);
+    border: 1px solid #d7f3e8;
     border-radius: 14px;
     padding: 14px 16px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.04);
@@ -303,8 +305,8 @@ section.main {
 }
 
 .insight-card {
-    background: #ffffff;
-    border: 1px solid #e8eaf0;
+    background: linear-gradient(135deg, #fffdf5 0%, #f8fafc 100%);
+    border: 1px solid #fde68a;
     border-radius: 8px;
     padding: 16px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.04);
@@ -433,6 +435,7 @@ def load_raw_data():
     year_col = find_col(["연도"])
     lat_col = find_col(["위도", "latitude", "lat", "Y좌표", "y좌표"])
     lon_col = find_col(["경도", "longitude", "lon", "X좌표", "x좌표"])
+    fitness_grade_col = find_col(["체력등급", "종합등급", "PAPS등급", "건강체력등급", "평가등급"])
 
     df["연도"] = (
         pd.to_numeric(df[year_col], errors="coerce").fillna(0).astype(int)
@@ -442,57 +445,12 @@ def load_raw_data():
     df["시군"] = find_first(["시군"], pd.Series(["미상"] * len(df), index=df.index))
     df["성별"] = find_first(["성별", "남여"], pd.Series(["전체"] * len(df), index=df.index))
     df["학년"] = find_first(["학년"], pd.Series(["전체"] * len(df), index=df.index))
+    df["체력등급"] = df[fitness_grade_col].astype(str).str.strip() if fitness_grade_col else pd.NA
     df["위도"] = pd.to_numeric(df[lat_col], errors="coerce") if lat_col else pd.NA
     df["경도"] = pd.to_numeric(df[lon_col], errors="coerce") if lon_col else pd.NA
     df = df.replace({"": pd.NA, "nan": pd.NA, "None": pd.NA})
 
-    return df, {"valid": valid_targets, "file_path": file_path}, None
-
-# ==========================================
-# 🌟 [신규 추가] AI 실제 중심값 추출 (학생 파일)
-# ==========================================
-@st.cache_data
-def load_student_ai_centroids():
-    try:
-        df = pd.read_csv("./data/Student_Raw_Data.csv")
-        df["보정_심폐지구력"] = df["심폐지구력(회)"] / (df["몸무게(kg)"] ** 0.33)
-        df["BMI"] = df["몸무게(kg)"] / ((df["키(cm)"]/100) ** 2)
-        features = df[["BMI", "보정_심폐지구력"]].dropna()
-        
-        scaler = StandardScaler()
-        scaled_data = scaler.fit_transform(features)
-        
-        kmeans = KMeans(n_clusters=4, random_state=42, n_init=10)
-        df.loc[features.index, "Cluster"] = kmeans.fit_predict(scaled_data)
-        
-        centroids = df.groupby("Cluster")[["BMI", "보정_심폐지구력"]].mean()
-        centroids = centroids.sort_values(by="보정_심폐지구력", ascending=False)
-        centroids["label"] = ["우수군", "일반군", "중점관리군", "고위험군"]
-        return centroids
-        
-    except Exception:
-        return pd.DataFrame([
-            {"label": "고위험군", "BMI": 29.0, "보정_심폐지구력": 4.6},
-            {"label": "중점관리군", "BMI": 25.0, "보정_심폐지구력": 5.8},
-            {"label": "일반군", "BMI": 22.0, "보정_심폐지구력": 7.0},
-            {"label": "우수군", "BMI": 19.5, "보정_심폐지구력": 8.4},
-        ])
-
-# ==========================================
-# 🌟 [수정] 개인 맞춤 시뮬레이션 알고리즘 연동
-# ==========================================
-def classify_student_profile(height_cm, weight_kg, shuttle_runs):
-    centroids = load_student_ai_centroids()
-    height_m = height_cm / 100
-    bmi = weight_kg / (height_m ** 2)
-    allometric_index = shuttle_runs / (weight_kg ** 0.33)
-
-    distances = (
-        (centroids["BMI"] - bmi) ** 2 + ((centroids["보정_심폐지구력"] - allometric_index) * 1.2) ** 2
-    ) ** 0.5
-    matched = centroids.loc[distances.idxmin()]
-    
-    return bmi, allometric_index, matched["label"]
+    return df, {"valid": valid_targets, "file_path": file_path, "grade_col": "체력등급"}, None
 
 
 def apply_filters(df, years, regions, grades, genders, schools):
@@ -561,6 +519,56 @@ def get_prescription_content(label):
     )
 
 
+def clamp_score(value, lower=0, upper=100):
+    return max(lower, min(upper, value))
+
+
+def classify_student_profile(height_cm, weight_kg, shuttle_runs, strength_score, flexibility_cm, power_cm):
+    height_m = height_cm / 100
+    bmi = weight_kg / (height_m ** 2)
+    height_factor = (height_m / 1.65) ** 0.28
+    weight_factor = (58 / weight_kg) ** 0.33
+
+    cardio_score = clamp_score((shuttle_runs * height_factor * weight_factor) / 80 * 100)
+    strength_adjusted = strength_score * (58 / weight_kg) ** 0.45
+    strength_index = clamp_score(strength_adjusted / 55 * 100)
+    flexibility_index = clamp_score((flexibility_cm + 5) / 35 * 100)
+    power_adjusted = power_cm * (height_cm / 165) ** 0.20 * (58 / weight_kg) ** 0.20
+    power_index = clamp_score(power_adjusted / 220 * 100)
+    bmi_stability = clamp_score(100 - abs(bmi - 21.5) * 8)
+    allometric_index = round(
+        cardio_score * 0.34
+        + strength_index * 0.22
+        + flexibility_index * 0.16
+        + power_index * 0.18
+        + bmi_stability * 0.10,
+        1,
+    )
+
+    component_scores = {
+        "BMI 안정성": round(bmi_stability, 1),
+        "심폐지구력": round(cardio_score, 1),
+        "근력/근지구력": round(strength_index, 1),
+        "유연성": round(flexibility_index, 1),
+        "순발력": round(power_index, 1),
+    }
+
+    centroids = pd.DataFrame(
+        [
+            {"label": "고위험군", "bmi": 29.0, "allometric": 35},
+            {"label": "중점관리군", "bmi": 25.0, "allometric": 52},
+            {"label": "일반군", "bmi": 22.0, "allometric": 68},
+            {"label": "우수군", "bmi": 19.5, "allometric": 84},
+        ]
+    )
+    distances = (
+        ((centroids["bmi"] - bmi) * 1.4) ** 2
+        + ((centroids["allometric"] - allometric_index) * 0.18) ** 2
+    ) ** 0.5
+    matched = centroids.loc[distances.idxmin()]
+    return bmi, allometric_index, matched["label"], component_scores
+
+
 @st.cache_data(show_spinner=False)
 def geocode_school_location(school_name, region_name):
     queries = [
@@ -596,7 +604,14 @@ def default_filter_state():
     }
 
 
-def render_filter_controls(df, meta, key_prefix, include_axis=True):
+def render_filter_controls(
+    df,
+    meta,
+    key_prefix,
+    include_axis=False,
+    include_cluster=False,
+    fields=None,
+):
     if f"{key_prefix}_filters" not in st.session_state:
         st.session_state[f"{key_prefix}_filters"] = default_filter_state()
 
@@ -607,31 +622,84 @@ def render_filter_controls(df, meta, key_prefix, include_axis=True):
     if state["y_ax"] not in metric_options:
         state["y_ax"] = metric_options[1 if len(metric_options) > 1 else 0]
 
-    row1 = st.columns(5)
-    with row1[0]:
-        years = st.multiselect("연도", sorted(df["연도"].dropna().unique()), default=state["years"], key=f"{key_prefix}_years")
-    with row1[1]:
-        regions = st.multiselect("시·군", sorted(df["시군"].dropna().unique()), default=state["regions"], key=f"{key_prefix}_regions")
-    with row1[2]:
-        grades = st.multiselect("학년", sorted(df["학년"].dropna().unique()), default=state["grades"], key=f"{key_prefix}_grades")
-    with row1[3]:
-        genders = st.multiselect("성별", sorted(df["성별"].dropna().unique()), default=state["genders"], key=f"{key_prefix}_genders")
-    with row1[4]:
-        school_base_df = apply_filters(df, years, regions, grades, genders, [])
-        school_options = sorted(school_base_df["순수학교명"].dropna().unique())
-        schools = st.multiselect("학교", school_options, default=[v for v in state["schools"] if v in school_options], key=f"{key_prefix}_schools")
+    fields = list(fields or ["years", "regions", "grades", "genders", "schools"])
+    years = []
+    regions = []
+    grades = []
+    genders = []
+    schools = []
+
+    filter_widgets = []
+    if "years" in fields:
+        filter_widgets.append("years")
+    if "regions" in fields:
+        filter_widgets.append("regions")
+    if "grades" in fields:
+        filter_widgets.append("grades")
+    if "genders" in fields:
+        filter_widgets.append("genders")
+    if "schools" in fields:
+        filter_widgets.append("schools")
+
+    if filter_widgets:
+        row1 = st.columns(len(filter_widgets))
+        for column, widget in zip(row1, filter_widgets):
+            with column:
+                if widget == "years":
+                    year_options = sorted(df["연도"].dropna().unique())
+                    years = st.multiselect(
+                        "연도",
+                        year_options,
+                        default=[value for value in state["years"] if value in year_options],
+                        key=f"{key_prefix}_years",
+                    )
+                elif widget == "regions":
+                    region_options = sorted(df["시군"].dropna().unique())
+                    regions = st.multiselect(
+                        "시·군",
+                        region_options,
+                        default=[value for value in state["regions"] if value in region_options],
+                        key=f"{key_prefix}_regions",
+                    )
+                elif widget == "grades":
+                    grade_options = sorted(df["학년"].dropna().unique())
+                    grades = st.multiselect(
+                        "학년",
+                        grade_options,
+                        default=[value for value in state["grades"] if value in grade_options],
+                        key=f"{key_prefix}_grades",
+                    )
+                elif widget == "genders":
+                    gender_options = sorted(df["성별"].dropna().unique())
+                    genders = st.multiselect(
+                        "성별",
+                        gender_options,
+                        default=[value for value in state["genders"] if value in gender_options],
+                        key=f"{key_prefix}_genders",
+                    )
+                elif widget == "schools":
+                    school_base_df = apply_filters(df, years, regions, grades, genders, [])
+                    school_options = sorted(school_base_df["순수학교명"].dropna().unique())
+                    schools = st.multiselect(
+                        "학교",
+                        school_options,
+                        default=[v for v in state["schools"] if v in school_options],
+                        key=f"{key_prefix}_schools",
+                    )
 
     x_ax = state["x_ax"]
     y_ax = state["y_ax"]
-    n_cl = state["clusters"]
+    n_cl = 4
     if include_axis:
-        row2 = st.columns([1.2, 1.2, 0.8])
+        axis_cols = [1.2, 1.2, 0.8] if include_cluster else [1, 1]
+        row2 = st.columns(axis_cols)
         with row2[0]:
             x_ax = st.selectbox("수평축", metric_options, index=metric_options.index(state["x_ax"]), key=f"{key_prefix}_x")
         with row2[1]:
             y_ax = st.selectbox("수직축", metric_options, index=metric_options.index(state["y_ax"]), key=f"{key_prefix}_y")
-        with row2[2]:
-            n_cl = st.slider("군집 수", 2, 4, state["clusters"], key=f"{key_prefix}_clusters")
+        if include_cluster:
+            with row2[2]:
+                n_cl = st.slider("군집 수", 2, 4, state["clusters"], key=f"{key_prefix}_clusters")
 
     state.update(
         {
@@ -648,9 +716,6 @@ def render_filter_controls(df, meta, key_prefix, include_axis=True):
     return state
 
 
-# ==========================================
-# 🌟 [수정] 대시보드 군집화 (보정점수 기반)
-# ==========================================
 def build_clustered_view(df, meta, filters):
     filtered_df = apply_filters(
         df,
@@ -678,14 +743,10 @@ def build_clustered_view(df, meta, filters):
     if len(cluster_source) < filters["clusters"]:
         return None, f"현재 조건에서는 군집 {filters['clusters']}개를 만들 데이터가 부족합니다."
 
-    # K-Means에 원점수가 아닌 알로메트릭 보정 점수를 입력으로 사용
-    cluster_source["adj_y"] = cluster_source[raw_y] / (cluster_source[raw_x].abs().replace(0, 1) ** 0.33)
-    
-    scaled_points = StandardScaler().fit_transform(cluster_source[[raw_x, "adj_y"]])
+    scaled_points = StandardScaler().fit_transform(cluster_source[[raw_x, raw_y]])
     kmeans = KMeans(n_clusters=filters["clusters"], random_state=42, n_init=10)
     cluster_source["Cluster"] = kmeans.fit_predict(scaled_points)
-    
-    cluster_summary = cluster_source.groupby("Cluster")[[raw_x, "adj_y"]].mean()
+    cluster_summary = cluster_source.groupby("Cluster")[[raw_x, raw_y]].mean()
     cluster_summary["score"] = cluster_summary.mean(axis=1)
     cluster_labels = build_cluster_labels(cluster_summary, filters["x_ax"])
     cluster_source["유형"] = cluster_source["Cluster"].map(cluster_labels)
@@ -801,6 +862,7 @@ def build_map_df(cluster_source):
 
 
 def plot_theme_colors():
+    # 발표 화면에서는 배경을 흰색으로 고정하고, 축/라벨은 진한 색으로 유지합니다.
     return {
         "paper": "#ffffff",
         "plot": "#ffffff",
@@ -818,7 +880,13 @@ def apply_plotly_theme(fig, height=None, margin=None, legend=None):
     layout = {
         "paper_bgcolor": colors["paper"],
         "plot_bgcolor": colors["plot"],
-        "font": dict(color=colors["text"], family="Noto Sans KR"),
+        "font": dict(color=colors["text"], family="Noto Sans KR", size=13),
+        "title_font": dict(color=colors["text"], family="Noto Sans KR", size=18),
+        "hoverlabel": dict(
+            bgcolor="#ffffff",
+            bordercolor="#1f2937",
+            font=dict(color=colors["text"], family="Noto Sans KR", size=13),
+        ),
     }
     if height is not None:
         layout["height"] = height
@@ -839,11 +907,14 @@ def apply_readable_axes(fig, height=None, margin=None, legend=None):
         zeroline=False,
         showline=True,
         linecolor=colors["axis"],
-        linewidth=1.4,
+        linewidth=2,
         ticks="outside",
         tickcolor=colors["axis"],
-        tickfont=dict(color=colors["text"], size=12),
-        title_font=dict(color=colors["text"], size=14),
+        tickwidth=1.6,
+        tickfont=dict(color=colors["text"], size=13),
+        title_font=dict(color=colors["text"], size=15),
+        title_standoff=12,
+        mirror=True,
     )
     fig.update_yaxes(
         showgrid=True,
@@ -851,11 +922,14 @@ def apply_readable_axes(fig, height=None, margin=None, legend=None):
         zeroline=False,
         showline=True,
         linecolor=colors["axis"],
-        linewidth=1.4,
+        linewidth=2,
         ticks="outside",
         tickcolor=colors["axis"],
-        tickfont=dict(color=colors["text"], size=12),
-        title_font=dict(color=colors["text"], size=14),
+        tickwidth=1.6,
+        tickfont=dict(color=colors["text"], size=13),
+        title_font=dict(color=colors["text"], size=15),
+        title_standoff=12,
+        mirror=True,
     )
     return fig
 
@@ -1057,11 +1131,19 @@ def risk_mask(series):
     return series.isin(["고위험군", "관리 필요군", "중점관리군"])
 
 
-# ==========================================
-# 🌟 [수정] 연도별 트렌드 X축 데이터 필터링
-# ==========================================
+def calculate_grade_45_share(df, meta):
+    grade_col = meta.get("grade_col")
+    if not grade_col or grade_col not in df.columns:
+        return None
+
+    extracted = df[grade_col].astype(str).str.extract(r"([1-5])")[0]
+    grade_numbers = pd.to_numeric(extracted, errors="coerce").dropna()
+    if grade_numbers.empty:
+        return None
+    return round(grade_numbers.isin([4, 5]).mean() * 100, 1)
+
+
 def render_yearly_trend(cluster_source):
-    # 비정상 연도 필터링
     valid_trend_source = cluster_source[
         (cluster_source["연도"] >= 2010)
         & (cluster_source["연도"] <= 2025)
@@ -1079,7 +1161,6 @@ def render_yearly_trend(cluster_source):
     )
     trend_df["취약군비율"] = (trend_df["취약군비율"] * 100).round(1)
     trend_df["연도_라벨"] = trend_df["연도"].astype(int).astype(str)
-    
     fig = px.line(
         trend_df,
         x="연도_라벨",
@@ -1123,39 +1204,41 @@ if load_error:
     st.stop()
 
 if "current_page" not in st.session_state:
-    st.session_state["current_page"] = "도내 체력 현황 요약"
+    st.session_state["current_page"] = "강원특별자치도 체력 현황 요약"
+elif st.session_state["current_page"] == "도내 체력 현황 요약":
+    st.session_state["current_page"] = "강원특별자치도 체력 현황 요약"
 
 
 with st.sidebar:
     st.markdown('<div class="sidebar-logo">🏃 PAPS CARE+</div>', unsafe_allow_html=True)
     st.markdown('<div class="sidebar-group">', unsafe_allow_html=True)
     st.markdown('<div class="sidebar-section">1. 📊 통합 대시보드</div>', unsafe_allow_html=True)
-    render_nav_button("도내 체력 현황 요약")
+    render_nav_button("강원특별자치도 체력 현황 요약", "📌 강원특별자치도 체력 현황 요약")
     render_nav_button("체력 취약망 지도 (Heatmap)", "체력 취약망 지도")
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="sidebar-group">', unsafe_allow_html=True)
     st.markdown('<div class="sidebar-section">2. 🤖 AI 체육 데이터 분석</div>', unsafe_allow_html=True)
-    render_nav_button("체격 보정 평가 모델 (Allometric)", "체격 보정 평가 모델")
+    render_nav_button("체격 보정 평가 모델 (Allometric)", "⚖️ 체격 보정 평가 모델")
     render_nav_button("AI 다차원 군집 분석")
     render_nav_button("종목/학년별 상세 통계")
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="sidebar-group">', unsafe_allow_html=True)
     st.markdown('<div class="sidebar-section">3. 🏃‍♂️ 맞춤형 체력 증진</div>', unsafe_allow_html=True)
-    render_nav_button("집단별 FITT 처방")
+    render_nav_button("집단별 FITT 처방", "🧭 집단별 FITT 처방")
     render_nav_button("학교별 교육 프로그램 추천", "학교별 프로그램 추천")
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="sidebar-group">', unsafe_allow_html=True)
     st.markdown('<div class="sidebar-section">4. 🏢 행정·정책 지원</div>', unsafe_allow_html=True)
-    render_nav_button("체육 강사 우선 배치망")
+    render_nav_button("체육 강사 우선 배치망", "🏫 체육 강사 우선 배치망")
     render_nav_button("지역별 예산 집행 타당성", "지역별 예산 타당성")
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="sidebar-group">', unsafe_allow_html=True)
     st.markdown('<div class="sidebar-section">5. 📱 학생/학부모 서비스</div>', unsafe_allow_html=True)
-    render_nav_button("나의 AI 체력 진단")
+    render_nav_button("나의 AI 체력 진단", "🧑‍🎓 나의 AI 체력 진단")
     render_nav_button("4주 맞춤 운동 플랜 발급", "4주 운동 플랜 발급")
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1206,17 +1289,22 @@ def render_overview():
     dominant_share = round((cluster_source["유형"].value_counts().max() / len(cluster_source)) * 100, 1)
     high_risk = len(cluster_source[cluster_source["유형"].isin(["고위험군", "관리 필요군"])])
     weak_share = round((high_risk / len(cluster_source)) * 100, 1)
+    grade_45_share = calculate_grade_45_share(result["filtered_df"], meta)
+    grade_45_value = f"{grade_45_share}%" if grade_45_share is not None else "자료 없음"
+    grade_45_help = "PAPS 등급 기준" if grade_45_share is not None else "등급 컬럼 필요"
     student_estimate = len(result["filtered_df"])
     high_risk_estimate = int(student_estimate * weak_share / 100)
 
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5 = st.columns(5)
     with c1:
         st.metric("분석 대상", f"{cluster_source['순수학교명'].nunique()}개교", f"{student_estimate:,}건")
     with c2:
-        st.metric("4~5등급·취약군 비율", f"{weak_share}%", "전년 대비 -2.1%p")
+        st.metric("4·5등급 비율", grade_45_value, grade_45_help)
     with c3:
-        st.metric("AI 고위험군 추정치", f"{high_risk_estimate:,}명", "집중 관리 대상")
+        st.metric("AI 취약군 비율", f"{weak_share}%", "고위험·관리필요군")
     with c4:
+        st.metric("AI 고위험군 추정치", f"{high_risk_estimate:,}명", "집중 관리 대상")
+    with c5:
         st.metric("주요 집단", dominant_group, f"{dominant_share}%")
 
     st.markdown("---")
@@ -1236,7 +1324,12 @@ def render_overview():
 
 
 def render_heatmap_page():
-    filters = render_filter_controls(raw_df, meta, "heatmap", include_axis=True)
+    filters = render_filter_controls(
+        raw_df,
+        meta,
+        "heatmap",
+        fields=["years", "regions", "grades", "genders"],
+    )
     result, error = build_clustered_view(raw_df, meta, filters)
     if error:
         st.warning(error)
@@ -1274,65 +1367,67 @@ def render_heatmap_page():
     st.markdown("<div class='section-space'></div>", unsafe_allow_html=True)
     render_scatter(result["cluster_source"], result["raw_x"], result["raw_y"], result["x_ax"], result["y_ax"])
 
-# ==========================================
-# 🌟 [수정] 학교 단위 순위 변화 (공정성 입증)
-# ==========================================
+
 def render_allometric_page():
-    filters = render_filter_controls(raw_df, meta, "allometric", include_axis=True)
+    filters = render_filter_controls(
+        raw_df,
+        meta,
+        "allometric",
+        fields=["years", "regions", "grades", "genders"],
+    )
+    metric_options = list(meta["valid"].keys())
+    fitness_options = [metric for metric in metric_options if metric != "BMI"] or metric_options
+    selected_metric = st.selectbox("보정 대상 체력 요인", fitness_options, key="allometric_target_metric")
+    filters["x_ax"] = "BMI" if "BMI" in metric_options else metric_options[0]
+    filters["y_ax"] = selected_metric
+    filters["clusters"] = 4
     result, error = build_clustered_view(raw_df, meta, filters)
     if error:
         st.warning(error)
         return
 
     st.markdown("#### 체격 보정 평가 모델 (Allometric)")
-    correction_on = st.toggle("✨ AI 체격 보정(Allometric Scaling) 켜기", value=False)
-    
+    correction_on = st.toggle("AI 보정 필터 켜기", value=True)
     allometric_df = result["cluster_source"].copy()
-    
-    school_impact = allometric_df.groupby("순수학교명").agg(
-        원점수_평균=(result["raw_y"], "mean"),
-        보정점수_평균=("adj_y", "mean") 
-    ).reset_index()
-    
-    school_impact["원점수_순위"] = school_impact["원점수_평균"].rank(ascending=False)
-    school_impact["보정점수_순위"] = school_impact["보정점수_평균"].rank(ascending=False)
-    school_impact["순위_상승폭"] = school_impact["원점수_순위"] - school_impact["보정점수_순위"]
-    
+    allometric_df["체격 보정 기준치"] = (
+        allometric_df[result["raw_x"]].abs().fillna(allometric_df[result["raw_x"]].mean()).clip(lower=1)
+    )
+    allometric_df["보정 체력지표"] = allometric_df[result["raw_y"]] / (allometric_df["체격 보정 기준치"] ** 0.33)
     left, right = st.columns(2)
     with left:
-        fig_raw = px.bar(
-            school_impact.sort_values("원점수_평균", ascending=False).head(10),
-            x="순수학교명", y="원점수_평균",
-            title="보정 전: 단순 원점수 기준 Top 10 학교",
-            color_discrete_sequence=["#607486"]
+        fig_raw = px.scatter(
+            allometric_df,
+            x=result["raw_x"],
+            y=result["raw_y"],
+            color="유형",
+            hover_name="순수학교명",
+            color_discrete_map=cluster_color_map(),
+            title="원점수 기준 분포",
         )
+        fig_raw.update_traces(marker=dict(size=13, opacity=0.86, line=dict(width=1.1, color="#ffffff")))
         apply_readable_axes(fig_raw, height=520, margin=dict(t=56, b=28, l=28, r=20))
+        fig_raw.update_layout(legend=dict(font=dict(color="#111827", size=12), bgcolor="rgba(255,255,255,0.85)"))
         st.plotly_chart(fig_raw, use_container_width=True)
-        
     with right:
-        if not correction_on:
-            fig_adjusted = px.bar(
-                school_impact.sort_values("원점수_평균", ascending=False).head(10),
-                x="순수학교명", y="원점수_평균",
-                title="보정 후 비교 화면 (상단 필터를 켜주세요)",
-                color_discrete_sequence=["#e8eaf0"]
-            )
-        else:
-            school_impact["강조"] = school_impact["순위_상승폭"].apply(lambda x: "순위 상승 학교" if x > 2 else "일반 유지")
-            color_map = {"순위 상승 학교": "#ef8b2c", "일반 유지": "#2574ea"}
-            fig_adjusted = px.bar(
-                school_impact.sort_values("보정점수_평균", ascending=False).head(10),
-                x="순수학교명", y="보정점수_평균",
-                title="보정 후: 체격 보정 점수 기준 Top 10 학교",
-                color="강조", color_discrete_map=color_map
-            )
+        adjusted_y = "보정 체력지표" if correction_on else result["raw_y"]
+        fig_adjusted = px.scatter(
+            allometric_df,
+            x=result["raw_x"],
+            y=adjusted_y,
+            color="유형",
+            hover_name="순수학교명",
+            color_discrete_map=cluster_color_map(),
+            title="체격 보정 후 분포" if correction_on else "보정 전 비교 화면",
+            labels={result["raw_x"]: result["x_ax"], adjusted_y: "보정 체력지표" if correction_on else result["y_ax"]},
+        )
+        fig_adjusted.update_traces(marker=dict(size=13, opacity=0.86, line=dict(width=1.1, color="#ffffff")))
         apply_readable_axes(fig_adjusted, height=520, margin=dict(t=56, b=28, l=28, r=20))
+        fig_adjusted.update_layout(legend=dict(font=dict(color="#111827", size=12), bgcolor="rgba(255,255,255,0.85)"))
         st.plotly_chart(fig_adjusted, use_container_width=True)
-
     st.markdown(
         """
         <div class="alert-card">
-            <b>💡 심사위원 어필 포인트:</b> AI 보정 필터를 켜면 학생들의 체격 조건 때문에 <b>원점수에서 억울하게 낮은 평가를 받던 학교들이 재평가되며 순위가 급상승(주황색)</b>하는 것을 볼 수 있습니다. 대시보드의 모든 AI 군집은 이 보정된 데이터를 기반으로 학습되었습니다.
+            AI 보정 필터를 켜면 체격 조건 때문에 원점수에서 불리했던 관측치가 재평가되는 흐름을 확인할 수 있습니다.
         </div>
         """,
         unsafe_allow_html=True,
@@ -1340,7 +1435,13 @@ def render_allometric_page():
 
 
 def render_cluster_page():
-    filters = render_filter_controls(raw_df, meta, "cluster", include_axis=True)
+    filters = render_filter_controls(
+        raw_df,
+        meta,
+        "cluster",
+        include_axis=True,
+        fields=["years", "regions", "grades", "genders", "schools"],
+    )
     result, error = build_clustered_view(raw_df, meta, filters)
     if error:
         st.warning(error)
@@ -1363,7 +1464,12 @@ def render_cluster_page():
 
 
 def render_detail_page():
-    filters = render_filter_controls(raw_df, meta, "detail", include_axis=False)
+    filters = render_filter_controls(
+        raw_df,
+        meta,
+        "detail",
+        fields=["years", "regions", "grades", "genders", "schools"],
+    )
     filtered_df = apply_filters(raw_df, filters["years"], filters["regions"], filters["grades"], filters["genders"], filters["schools"])
     if filtered_df.empty:
         st.warning("선택한 조건에 맞는 데이터가 없습니다.")
@@ -1418,7 +1524,12 @@ def render_detail_page():
 
 
 def render_prescription_page():
-    filters = render_filter_controls(raw_df, meta, "prescription", include_axis=True)
+    filters = render_filter_controls(
+        raw_df,
+        meta,
+        "prescription",
+        fields=["years", "regions", "grades", "genders"],
+    )
     result, error = build_clustered_view(raw_df, meta, filters)
     if error:
         st.warning(error)
@@ -1462,7 +1573,12 @@ def render_prescription_page():
 
 
 def render_school_recommendation_page():
-    filters = render_filter_controls(raw_df, meta, "school_rec", include_axis=True)
+    filters = render_filter_controls(
+        raw_df,
+        meta,
+        "school_rec",
+        fields=["years", "regions", "grades", "genders"],
+    )
     result, error = build_clustered_view(raw_df, meta, filters)
     if error:
         st.warning(error)
@@ -1490,7 +1606,12 @@ def render_school_recommendation_page():
 
 
 def render_teacher_priority_page():
-    filters = render_filter_controls(raw_df, meta, "teacher_priority", include_axis=True)
+    filters = render_filter_controls(
+        raw_df,
+        meta,
+        "teacher_priority",
+        fields=["years", "regions"],
+    )
     result, error = build_clustered_view(raw_df, meta, filters)
     if error:
         st.warning(error)
@@ -1512,7 +1633,12 @@ def render_teacher_priority_page():
 
 
 def render_budget_page():
-    filters = render_filter_controls(raw_df, meta, "budget", include_axis=True)
+    filters = render_filter_controls(
+        raw_df,
+        meta,
+        "budget",
+        fields=["years", "regions"],
+    )
     result, error = build_clustered_view(raw_df, meta, filters)
     if error:
         st.warning(error)
@@ -1556,29 +1682,37 @@ def render_budget_page():
         )
     st.dataframe(budget_df.sort_values("취약비율", ascending=False), use_container_width=True)
 
-# ==========================================
-# 🌟 [수정] B2C 학생 개인 뷰 (시뮬레이터 연동)
-# ==========================================
+
 def render_b2c_page():
     st.markdown("#### 학생/학부모 서비스")
     left_input, right_mock = st.columns([0.9, 1.1])
     with left_input:
-        st.markdown("##### 📝 나의 신체 데이터 입력")
-        height_cm = st.number_input("키 (cm)", min_value=120.0, max_value=210.0, value=165.0, step=1.0)
-        weight_kg = st.number_input("몸무게 (kg)", min_value=25.0, max_value=150.0, value=58.0, step=1.0)
-        shuttle_runs = st.number_input("심폐지구력 (셔틀런 횟수)", min_value=1.0, max_value=200.0, value=42.0, step=1.0)
+        height_cm = st.number_input("키 (cm)", min_value=120, max_value=210, value=165, step=1)
+        weight_kg = st.number_input("몸무게 (kg)", min_value=25, max_value=150, value=58, step=1)
+        st.markdown("##### 5대 체력 요인 입력")
+        shuttle_runs = st.number_input("심폐지구력 - 셔틀런 횟수", min_value=1, max_value=200, value=42, step=1)
+        strength_score = st.number_input("근력/근지구력 - 악력 또는 근력 점수", min_value=1, max_value=100, value=38, step=1)
+        flexibility_cm = st.number_input("유연성 - 앉아윗몸앞으로굽히기(cm)", min_value=-20, max_value=50, value=15, step=1)
+        power_cm = st.number_input("순발력 - 제자리멀리뛰기(cm)", min_value=50, max_value=350, value=175, step=1)
 
-    bmi, allometric_index, cluster_label = classify_student_profile(height_cm, weight_kg, shuttle_runs)
+    bmi, allometric_index, cluster_label, component_scores = classify_student_profile(
+        height_cm,
+        weight_kg,
+        shuttle_runs,
+        strength_score,
+        flexibility_cm,
+        power_cm,
+    )
     title_1, body_1, title_2, body_2 = get_prescription_content(cluster_label)
 
     with right_mock:
         colors = plot_theme_colors()
-        gauge_value = min(max(allometric_index * 10, 0), 100)
+        gauge_value = allometric_index
         gauge = go.Figure(
             go.Indicator(
                 mode="gauge+number",
                 value=gauge_value,
-                title={"text": "AI 알로메트릭 보정 지수"},
+                title={"text": "AI 보정 체력 지수"},
                 gauge={
                     "axis": {"range": [0, 100]},
                     "bar": {"color": "#0f766e"},
@@ -1597,12 +1731,27 @@ def render_b2c_page():
             gauge={"axis": {"tickcolor": colors["axis"], "tickfont": {"color": colors["text"]}}},
         )
         st.plotly_chart(gauge, use_container_width=True)
+        component_df = pd.DataFrame(
+            {"체력 요인": list(component_scores.keys()), "보정 점수": list(component_scores.values())}
+        )
+        component_fig = px.bar(
+            component_df,
+            x="체력 요인",
+            y="보정 점수",
+            color="체력 요인",
+            title="체력 요인별 보정 점수",
+            color_discrete_sequence=["#0f766e", "#2574ea", "#ef8b2c", "#1c9d74", "#d44b57"],
+        )
+        component_fig.update_layout(showlegend=False)
+        apply_readable_axes(component_fig, height=300, margin=dict(t=52, b=48, l=36, r=16))
+        component_fig.update_yaxes(range=[0, 100])
+        st.plotly_chart(component_fig, use_container_width=True)
         st.markdown(
             f"""
             <div class="mobile-frame">
                 <div class="phone-badge">나의 AI 체력 진단</div>
                 <h4 style="margin:0 0 10px 0;">{cluster_label}</h4>
-                <p style="margin:0;color:#475467;line-height:1.8;">체격의 한계를 AI가 공정하게 보정했습니다. 나의 보정 지수는 <b>{allometric_index:.2f}</b>점 입니다.</p>
+                <p style="margin:0;color:#475467;line-height:1.8;">BMI {bmi:.1f} · 체격 보정지수 {allometric_index:.1f}점<br>키와 체중을 반영해 5대 체력 요인을 함께 평가합니다.</p>
                 <div class="mission-row"><span>오늘의 미션</span><b>30분 빠르게 걷기</b></div>
                 <div class="mission-row"><span>1주차</span><b>{title_1}</b></div>
                 <div class="mission-row"><span>체크</span><b>□ 완료</b></div>
@@ -1621,7 +1770,7 @@ def render_b2c_page():
 
 
 page_map = {
-    "도내 체력 현황 요약": render_overview,
+    "강원특별자치도 체력 현황 요약": render_overview,
     "체력 취약망 지도 (Heatmap)": render_heatmap_page,
     "체격 보정 평가 모델 (Allometric)": render_allometric_page,
     "AI 다차원 군집 분석": render_cluster_page,
@@ -1635,7 +1784,7 @@ page_map = {
 }
 
 if current_page not in page_map:
-    current_page = "도내 체력 현황 요약"
+    current_page = "강원특별자치도 체력 현황 요약"
     st.session_state["current_page"] = current_page
 
 page_map[current_page]()
