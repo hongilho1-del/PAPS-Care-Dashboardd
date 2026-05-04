@@ -13,7 +13,7 @@ from sklearn.preprocessing import StandardScaler
 
 
 st.set_page_config(
-    page_title="PAPS CARE+",
+    page_title="PAPS CARE+🏃",
     page_icon="🏃",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -857,21 +857,13 @@ st.markdown(
 
 st.markdown(
     f"""
-    <div class="breadcrumb">교육행정 &gt; <span>{current_page}</span></div>
+    <div class="breadcrumb">학교체육 &gt; <span>{current_page}</span></div>
     <div class="page-title">🏃 PAPS CARE+</div>
     """,
     unsafe_allow_html=True,
 )
 
-st.markdown(
-    """
-    <div class="notice-card">
-        <b>PAPS CARE+ Intelligence</b><br>
-        강원도 학교 체력 데이터를 기반으로 집단별 체력 수준을 AI 군집 분석하고, 취약 지역과 맞춤형 처방 방향을 행정 대시보드 형태로 제공합니다.
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+
 
 
 def render_overview():
@@ -912,7 +904,6 @@ def render_heatmap_page():
         return
 
     st.markdown("#### 체력 취약망 지도")
-    st.caption("히트맵과 산포도를 위아래로 배치해 각각 더 크게 볼 수 있도록 구성했습니다.")
     st.markdown('<div class="map-card">', unsafe_allow_html=True)
     render_heatmap(result["cluster_source"])
     st.markdown("</div>", unsafe_allow_html=True)
