@@ -375,6 +375,38 @@ section.main {
     color: #344054;
     font-size: 13px;
 }
+
+.fitt-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin: 8px 0 14px 0;
+}
+
+.fitt-card {
+    background: linear-gradient(135deg, #f8fbff 0%, #eefdf7 100%);
+    border: 1px solid #d7f3e8;
+    border-radius: 14px;
+    padding: 10px 12px;
+    min-height: 78px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+}
+
+.fitt-key {
+    color: #344054;
+    font-size: 11px;
+    font-weight: 900;
+    margin-bottom: 5px;
+}
+
+.fitt-value {
+    color: #1d4ed8;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.35;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+}
 </style>
 """,
     unsafe_allow_html=True,
@@ -1584,7 +1616,7 @@ def render_prescription_page():
         raw_df,
         meta,
         "prescription",
-        fields=["years", "regions", "school_levels", "grades", "genders"],
+        fields=["years", "regions", "school_levels", "grades", "genders", "schools"],
     )
     result, error = build_clustered_view(raw_df, meta, filters)
     if error:
@@ -1746,15 +1778,29 @@ def render_prescription_page():
                     """,
                     unsafe_allow_html=True,
                 )
-                c1, c2, c3, c4 = st.columns(4)
-                with c1:
-                    st.metric("F 빈도", fitt["F"])
-                with c2:
-                    st.metric("I 강도", fitt["I"])
-                with c3:
-                    st.metric("T 시간", fitt["T_time"])
-                with c4:
-                    st.metric("T 종류", fitt["T_type"])
+                st.markdown(
+                    f"""
+                    <div class="fitt-grid">
+                        <div class="fitt-card">
+                            <div class="fitt-key">F 빈도</div>
+                            <div class="fitt-value">{fitt["F"]}</div>
+                        </div>
+                        <div class="fitt-card">
+                            <div class="fitt-key">I 강도</div>
+                            <div class="fitt-value">{fitt["I"]}</div>
+                        </div>
+                        <div class="fitt-card">
+                            <div class="fitt-key">T 시간</div>
+                            <div class="fitt-value">{fitt["T_time"]}</div>
+                        </div>
+                        <div class="fitt-card">
+                            <div class="fitt-key">T 종류</div>
+                            <div class="fitt-value">{fitt["T_type"]}</div>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
             st.markdown(
                 "<h5 style='margin-top:10px; font-size:15px; font-weight:700;'>📅 4주 체육 수업 지도안 (예시)</h5>",
