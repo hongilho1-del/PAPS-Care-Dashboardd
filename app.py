@@ -1841,13 +1841,76 @@ def render_school_recommendation_page():
         "school_rec",
         fields=["years", "regions", "school_levels", "grades", "genders"],
     )
-    filter_col1, filter_col2 = st.columns([1, 1.4])
-    with filter_col1:
-        program_filter = st.selectbox(
-            "추천 프로그램 필터",
-            ["전체", "건강체력교실 우선 배정 요망", "방과후 체육클럽 권장"],
-            key="school_rec_program_filter",
+    result, error = build_clustered_view(raw_df, meta, filters)
+    if error:
+        st.warning(error)
+        return
+
+    st.markdown("#### 🎯 데이터 기반 학교별 맞춤 프로그램 추천")
+    st.caption("AI 군집 결과와 학교별 취약 요인을 결합하여 최적의 교육 사업을 매칭합니다.")
+
+    risk_schools = result["cluster_source"].copy()
+    if risk_schools.empty:
+        st.info("현재 조건에서는 추천 대상 학교가 없습니다.")
+        return
+
+    def safe_metric_value(row, metric_name, default_value):
+        column = meta["valid"].get(metric_name)
+        value = row.get(column, default_value) if column else default_value
+        return default_value if pd.isna(value) else value
+
+    def get_rec_program(row):
+        bmi_val = safe_metric_value(row, "BMI", 22)
+        flex_val = safe_metric_value(row, "유연성", 15)
+
+        if row["유형"] == "고위험군":
+            if bmi_val > 25:
+                return (
+                    "건강체력교실 (비만 관리형)",
+                    "tag-priority",
+                    "🚨 비만 지수가 높고 심폐지구력이 시급한 학교입니다. 영양 상담과 저강도 유산소 프로그램을 우선 지원하세요.",
+                )
+            return (
+                "기초 체력 빌드업 (순환 운동)",
+                "tag-priority",
+                "📉 기초 체력이 전반적으로 저하된 집단입니다. 전문 스포츠 강사를 배치하여 순환 운동 루틴을 보급하세요.",
+            )
+
+        if row["유형"] == "중점관리군":
+            if flex_val < 10:
+                return (
+                    "유연성·코어 강화 클럽",
+                    "tag-orange",
+                    "🧘 유연성 지표가 유독 낮습니다. 요가, 필라테스 등 유연성과 코어 중심의 방과 후 클럽 지원이 효과적입니다.",
+                )
+            return (
+                "뉴스포츠 활성화 지원",
+                "tag-orange",
+                "🏸 흥미 위주의 스포츠 참여가 필요합니다. 킨볼, 플로어볼 등 뉴스포츠 교구와 강사비를 우선 지원하세요.",
+            )
+
+        if row["유형"] == "우수군":
+            return (
+                "학생 스포츠 자치 리더십",
+                "tag-blue",
+                "🏆 체력 수준이 매우 높은 학교입니다. 학생이 스스로 리그를 운영하는 스포츠 자치회 예산을 지원하여 리더십을 키워주세요.",
+            )
+
+        return (
+            "강원 특화 계절 스포츠",
+            "tag-green",
+            "❄️ 지역 자원을 활용한 동계 스포츠 체험 학습비를 배정하여 체력 유지와 흥미를 고취하세요.",
         )
+
+    risk_schools[["추천프로그램", "태그스타일", "상세설명"]] = risk_schools.apply(
+        lambda row: pd.Series(get_rec_program(row)),
+        axis=1,
+    )
+
+    filter_col1, filter_col2 = st.columns([1.2, 1.2])
+    with filter_col1:
+        all_progs = sorted(risk_schools["추천프로그램"].dropna().unique())
+        selected_prog = st.multiselect("📌 프로그램별 필터", all_progs, default=all_progs, key="school_rec_dynamic_program")
     with filter_col2:
         school_keyword = st.text_input(
             "학교명 검색",
@@ -1855,43 +1918,32 @@ def render_school_recommendation_page():
             key="school_rec_keyword",
         ).strip()
 
-    result, error = build_clustered_view(raw_df, meta, filters)
-    if error:
-        st.warning(error)
-        return
-    risk_schools = result["cluster_source"][result["cluster_source"]["유형"].isin(["고위험군", "관리 필요군", "중점관리군"])].copy()
-    if risk_schools.empty:
-        st.info("현재 조건에서는 추천 대상 학교가 없습니다.")
-        return
-    rec_df = risk_schools[["순수학교명", "시군", "연도", "학년", "성별", "유형"]].copy()
-    rec_df["추천 프로그램"] = rec_df["유형"].apply(
-        lambda label: "건강체력교실 우선 배정 요망" if label in ["고위험군", "관리 필요군"] else "방과후 체육클럽 권장"
-    )
-    if program_filter != "전체":
-        rec_df = rec_df[rec_df["추천 프로그램"] == program_filter]
+    rec_df = risk_schools[risk_schools["추천프로그램"].isin(selected_prog)].copy()
     if school_keyword:
         rec_df = rec_df[rec_df["순수학교명"].astype(str).str.contains(school_keyword, case=False, na=False)]
 
     if rec_df.empty:
-        st.info("선택한 추천 프로그램 또는 학교명 조건에 맞는 학교가 없습니다.")
+        st.info("선택한 프로그램 또는 학교명 조건에 맞는 학교가 없습니다.")
         return
 
-    st.caption(f"조건에 맞는 추천 대상 {len(rec_df)}건을 모두 표시합니다.")
-    for _, row in rec_df.iterrows():
-        tag_class = "tag-priority" if row["추천 프로그램"] == "건강체력교실 우선 배정 요망" else "tag-normal"
-        tag_text = row["추천 프로그램"]
+    st.caption(f"조건에 맞는 추천 대상 {len(rec_df)}건 중 카드 미리보기 15건과 전체 명단을 표시합니다.")
+    for _, row in rec_df.head(15).iterrows():
         st.markdown(
             f"""
-            <div class="report-card">
-                <span class="program-tag {tag_class}">{tag_text}</span>
-                <h4>{row["순수학교명"]}</h4>
-                <p>{row["시군"]} · {row["학년"]}학년 · {row["성별"]} · AI 분류: <b>{row["유형"]}</b></p>
+            <div class="report-card" style="margin-bottom: 15px; border-left: 5px solid {cluster_color_map().get(row['유형'], '#94a3b8')};">
+                <span class="program-tag {row['태그스타일']}">{row['추천프로그램']}</span>
+                <span style="font-size:12px; color:#475467;">| AI 분류: <b>{row['유형']}</b></span>
+                <h4 style="margin-top:10px;">{row["순수학교명"]}</h4>
+                <p style="font-size:13px; color:#344054;">{row['상세설명']}</p>
+                <p style="font-size:11px; color:#64748b; margin-top:5px;">{row["시군"]} · {row["학년"]}학년 · {row["성별"]}</p>
             </div>
             """,
             unsafe_allow_html=True,
         )
     st.markdown("<div class='section-space'></div>", unsafe_allow_html=True)
-    st.dataframe(rec_df, use_container_width=True, hide_index=True)
+    st.markdown("##### 📊 추천 대상 학교 명단 (전체)")
+    table_cols = ["순수학교명", "시군", "연도", "학년", "성별", "유형", "추천프로그램", "상세설명"]
+    st.dataframe(rec_df[table_cols], use_container_width=True, hide_index=True)
 
 
 def render_teacher_priority_page():
@@ -2035,9 +2087,14 @@ def render_b2c_diagnosis_page():
         )
         apply_plotly_theme(gauge, height=280, margin=dict(t=40, b=10, l=20, r=20))
         gauge.update_traces(
-            title={"font": {"color": colors["text"]}},
-            number={"font": {"color": colors["text"]}},
-            gauge={"axis": {"tickcolor": colors["axis"], "tickfont": {"color": colors["text"]}}},
+            title={"font": {"color": "#111827", "size": 20, "family": "Noto Sans KR"}},
+            number={"font": {"color": "#111827", "size": 42, "family": "Noto Sans KR"}},
+            gauge={
+                "axis": {
+                    "tickcolor": "#111827",
+                    "tickfont": {"color": "#111827", "size": 13, "family": "Noto Sans KR"},
+                }
+            },
         )
         st.plotly_chart(gauge, use_container_width=True)
         component_df = pd.DataFrame(
@@ -2052,8 +2109,20 @@ def render_b2c_diagnosis_page():
             color_discrete_sequence=["#0f766e", "#2574ea", "#ef8b2c", "#1c9d74", "#d44b57"],
         )
         component_fig.update_layout(showlegend=False)
-        apply_readable_axes(component_fig, height=300, margin=dict(t=52, b=48, l=36, r=16))
-        component_fig.update_yaxes(range=[0, 100])
+        component_fig.update_traces(
+            texttemplate="%{y:.1f}",
+            textposition="outside",
+            textfont=dict(color="#111827", size=12, family="Noto Sans KR"),
+            marker=dict(line=dict(color="#ffffff", width=1.2)),
+        )
+        apply_readable_axes(component_fig, height=340, margin=dict(t=58, b=82, l=48, r=20))
+        component_fig.update_layout(
+            title=dict(font=dict(color="#111827", size=18, family="Noto Sans KR")),
+            uniformtext_minsize=10,
+            uniformtext_mode="show",
+        )
+        component_fig.update_xaxes(tickangle=-18, tickfont=dict(color="#111827", size=12, family="Noto Sans KR"), automargin=True)
+        component_fig.update_yaxes(range=[0, 110], tickfont=dict(color="#111827", size=13, family="Noto Sans KR"))
         st.plotly_chart(component_fig, use_container_width=True)
         st.markdown(
             f"""
