@@ -27,7 +27,7 @@ html, body, [class*="css"], .stApp {
     color: #1a2233;
 }
 
-#MainMenu, header, footer {
+#MainMenu, footer {
     visibility: hidden;
 }
 
@@ -209,6 +209,16 @@ html, body, [class*="css"], .stApp {
     border-radius: 14px;
     padding: 14px 16px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+}
+
+[data-testid="stMetricLabel"] {
+    color: #475467 !important;
+    font-weight: 700 !important;
+}
+
+[data-testid="stMetricValue"] {
+    color: #1d4ed8 !important;
+    font-weight: 800 !important;
 }
 
 [data-testid="stButton"] button {
@@ -529,9 +539,22 @@ def build_map_df(cluster_source):
         clean_name = str(city_name).replace("시", "").replace("군", "").strip()
         return kangwon_coords.get(clean_name, (37.8813, 127.7298))
 
-    map_df = cluster_source.copy()
-    map_df["lat"] = map_df["시군"].apply(lambda value: get_coords(value)[0])
-    map_df["lon"] = map_df["시군"].apply(lambda value: get_coords(value)[1])
+    def stable_jitter(seed_text):
+        seed = sum(ord(ch) for ch in str(seed_text))
+        lat_offset = ((seed % 17) - 8) * 0.0065
+        lon_offset = (((seed // 17) % 17) - 8) * 0.0085
+        return lat_offset, lon_offset
+
+    map_df = cluster_source.copy().reset_index(drop=True)
+    base_coords = map_df["시군"].apply(get_coords)
+    map_df["base_lat"] = base_coords.apply(lambda value: value[0])
+    map_df["base_lon"] = base_coords.apply(lambda value: value[1])
+
+    jitter_seed = map_df["순수학교명"].astype(str) + "_" + map_df.index.astype(str)
+    jitter = jitter_seed.apply(stable_jitter)
+    map_df["lat"] = map_df["base_lat"] + jitter.apply(lambda value: value[0])
+    map_df["lon"] = map_df["base_lon"] + jitter.apply(lambda value: value[1])
+
     weight_map = {
         "고위험군": 10,
         "관리 필요군": 8,
@@ -571,17 +594,29 @@ def render_heatmap(cluster_source):
             [1.00, "rgba(255,186,111,1.00)"],
         ],
     )
-
-    city_points = map_df.groupby("시군", as_index=False)[["lat", "lon", "weight"]].mean()
     fig.add_trace(
         go.Scattermapbox(
-            lat=city_points["lat"],
-            lon=city_points["lon"],
-            mode="markers+text",
-            text=city_points["시군"],
-            textposition="top center",
-            marker=dict(size=9, color="#233a8b", opacity=0.70),
-            hoverinfo="skip",
+            lat=map_df["lat"],
+            lon=map_df["lon"],
+            mode="markers",
+            marker=dict(
+                size=6,
+                color=map_df["weight"],
+                colorscale=[
+                    [0.00, "#233a8b"],
+                    [0.33, "#475fcc"],
+                    [0.66, "#e87d38"],
+                    [1.00, "#ffba6f"],
+                ],
+                opacity=0.28,
+                showscale=False,
+            ),
+            customdata=map_df[["시군", "순수학교명", "유형"]].to_numpy(),
+            hovertemplate=(
+                "시군: %{customdata[0]}<br>"
+                "학교: %{customdata[1]}<br>"
+                "집단: %{customdata[2]}<extra></extra>"
+            ),
             showlegend=False,
         )
     )
@@ -593,7 +628,7 @@ def render_heatmap(cluster_source):
         yref="paper",
         xanchor="right",
         yanchor="top",
-        text="<b>취약 체력 밀집도</b>",
+        text="<b>관측치 기반 취약 체력 밀집도</b>",
         showarrow=False,
         align="left",
         bgcolor="rgba(255,255,255,0.95)",
