@@ -1,4 +1,8 @@
+import json
 import os
+import time
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
 import pandas as pd
 import plotly.express as px
@@ -319,6 +323,8 @@ def load_raw_data():
     df["순수학교명"] = find_first(["추출학교명", "학교명"], school_fallback)
 
     year_col = find_col(["연도"])
+    lat_col = find_col(["위도", "latitude", "lat", "Y좌표", "y좌표"])
+    lon_col = find_col(["경도", "longitude", "lon", "X좌표", "x좌표"])
     df["연도"] = (
         pd.to_numeric(df[year_col], errors="coerce").fillna(0).astype(int)
         if year_col
@@ -327,6 +333,8 @@ def load_raw_data():
     df["시군"] = find_first(["시군"], pd.Series(["미상"] * len(df), index=df.index))
     df["성별"] = find_first(["성별", "남여"], pd.Series(["전체"] * len(df), index=df.index))
     df["학년"] = find_first(["학년"], pd.Series(["전체"] * len(df), index=df.index))
+    df["위도"] = pd.to_numeric(df[lat_col], errors="coerce") if lat_col else pd.NA
+    df["경도"] = pd.to_numeric(df[lon_col], errors="coerce") if lon_col else pd.NA
     df = df.replace({"": pd.NA, "nan": pd.NA, "None": pd.NA})
 
     return df, {"valid": valid_targets, "file_path": file_path}, None
@@ -418,6 +426,31 @@ def classify_student_profile(height_cm, weight_kg, shuttle_runs):
     return bmi, allometric_index, matched["label"]
 
 
+@st.cache_data(show_spinner=False)
+def geocode_school_location(school_name, region_name):
+    queries = [
+        f"{school_name}, {region_name}, 강원특별자치도, 대한민국",
+        f"{school_name}, 강원특별자치도, 대한민국",
+        f"{school_name}, 대한민국",
+    ]
+
+    for query in queries:
+        try:
+            params = urlencode({"q": query, "format": "jsonv2", "limit": 1})
+            request = Request(
+                f"https://nominatim.openstreetmap.org/search?{params}",
+                headers={"User-Agent": "PAPS-Care-Streamlit-Dashboard/1.0"},
+            )
+            with urlopen(request, timeout=8) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            if payload:
+                return float(payload[0]["lat"]), float(payload[0]["lon"])
+        except Exception:
+            continue
+
+    return None, None
+
+
 def default_filter_state():
     return {
         "years": [],
@@ -496,6 +529,10 @@ def build_clustered_view(df, meta, filters):
 
     group_cols = ["순수학교명", "연도", "시군", "학년", "성별"]
     agg_map = {column: "mean" for column in meta["valid"].values()}
+    if "위도" in filtered_df.columns:
+        agg_map["위도"] = "mean"
+    if "경도" in filtered_df.columns:
+        agg_map["경도"] = "mean"
     df_agg = filtered_df.groupby(group_cols, dropna=False).agg(agg_map).reset_index()
 
     raw_x = meta["valid"][filters["x_ax"]]
@@ -556,14 +593,54 @@ def build_map_df(cluster_source):
         return lat_offset, lon_offset
 
     map_df = cluster_source.copy().reset_index(drop=True)
-    base_coords = map_df["시군"].apply(get_coords)
-    map_df["base_lat"] = base_coords.apply(lambda value: value[0])
-    map_df["base_lon"] = base_coords.apply(lambda value: value[1])
+    has_real_coords = (
+        "위도" in map_df.columns
+        and "경도" in map_df.columns
+        and map_df["위도"].notna().any()
+        and map_df["경도"].notna().any()
+    )
 
-    jitter_seed = map_df["순수학교명"].astype(str) + "_" + map_df.index.astype(str)
-    jitter = jitter_seed.apply(stable_jitter)
-    map_df["lat"] = map_df["base_lat"] + jitter.apply(lambda value: value[0])
-    map_df["lon"] = map_df["base_lon"] + jitter.apply(lambda value: value[1])
+    if has_real_coords:
+        map_df["lat"] = pd.to_numeric(map_df["위도"], errors="coerce")
+        map_df["lon"] = pd.to_numeric(map_df["경도"], errors="coerce")
+        missing_mask = map_df["lat"].isna() | map_df["lon"].isna()
+        if missing_mask.any():
+            fallback_coords = map_df.loc[missing_mask, "시군"].apply(get_coords)
+            map_df.loc[missing_mask, "lat"] = fallback_coords.apply(lambda value: value[0]).values
+            map_df.loc[missing_mask, "lon"] = fallback_coords.apply(lambda value: value[1]).values
+    else:
+        base_coords = map_df["시군"].apply(get_coords)
+        map_df["base_lat"] = base_coords.apply(lambda value: value[0])
+        map_df["base_lon"] = base_coords.apply(lambda value: value[1])
+
+        map_df["lat"] = pd.NA
+        map_df["lon"] = pd.NA
+
+        unique_schools = (
+            map_df[["순수학교명", "시군"]]
+            .drop_duplicates()
+            .reset_index(drop=True)
+        )
+        geocoded = {}
+        for _, school_row in unique_schools.iterrows():
+            school_name = str(school_row["순수학교명"])
+            region_name = str(school_row["시군"])
+            geocoded[(school_name, region_name)] = geocode_school_location(school_name, region_name)
+            time.sleep(0.1)
+
+        for idx, row in map_df.iterrows():
+            key = (str(row["순수학교명"]), str(row["시군"]))
+            lat, lon = geocoded.get(key, (None, None))
+            if lat is not None and lon is not None:
+                map_df.at[idx, "lat"] = lat
+                map_df.at[idx, "lon"] = lon
+
+        missing_mask = map_df["lat"].isna() | map_df["lon"].isna()
+        if missing_mask.any():
+            jitter_seed = map_df.loc[missing_mask, "순수학교명"].astype(str) + "_" + map_df.loc[missing_mask].index.astype(str)
+            jitter = jitter_seed.apply(stable_jitter)
+            map_df.loc[missing_mask, "lat"] = map_df.loc[missing_mask, "base_lat"] + jitter.apply(lambda value: value[0]).values
+            map_df.loc[missing_mask, "lon"] = map_df.loc[missing_mask, "base_lon"] + jitter.apply(lambda value: value[1]).values
 
     weight_map = {
         "고위험군": 10,
@@ -959,89 +1036,4 @@ def render_teacher_priority_page():
     priority = risk_schools.groupby("순수학교명").agg({"유형": "count", result["raw_y"]: "mean", "시군": "first"}).reset_index()
     priority.columns = ["학교명", "취약 학생군 건수", "심폐지표 평균", "시군"]
     priority = priority.sort_values(["취약 학생군 건수", "심폐지표 평균"], ascending=[False, True])
-    st.dataframe(priority.head(50), use_container_width=True)
-
-
-def render_budget_page():
-    filters = render_filter_controls(raw_df, meta, "budget", include_axis=True)
-    result, error = build_clustered_view(raw_df, meta, filters)
-    if error:
-        st.warning(error)
-        return
-
-    budget_df = result["cluster_source"].groupby("시군").agg(
-        취약학교수=("유형", lambda x: int(x.isin(["고위험군", "관리 필요군", "중점관리군"]).sum())),
-        전체학교수=("순수학교명", "count"),
-        평균심폐지표=(result["raw_y"], "mean"),
-    ).reset_index()
-    budget_df["취약비율"] = (budget_df["취약학교수"] / budget_df["전체학교수"] * 100).round(1)
-    fig = px.bar(budget_df.sort_values("취약비율", ascending=False), x="시군", y="취약비율", title="지역별 취약 비율")
-    st.plotly_chart(fig, use_container_width=True)
-    st.dataframe(budget_df.sort_values("취약비율", ascending=False), use_container_width=True)
-
-
-def render_b2c_page():
-    st.markdown("#### 학생/학부모 서비스")
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        height_cm = st.number_input("키 (cm)", min_value=120, max_value=210, value=165, step=1)
-    with c2:
-        weight_kg = st.number_input("몸무게 (kg)", min_value=25, max_value=150, value=58, step=1)
-    with c3:
-        shuttle_runs = st.number_input("셔틀런 횟수", min_value=1, max_value=200, value=42, step=1)
-
-    bmi, allometric_index, cluster_label = classify_student_profile(height_cm, weight_kg, shuttle_runs)
-    title_1, body_1, title_2, body_2 = get_prescription_content(cluster_label)
-
-    a, b, c = st.columns(3)
-    with a:
-        st.metric("BMI", f"{bmi:.1f}")
-    with b:
-        st.metric("보정 심폐지표", f"{allometric_index:.2f}")
-    with c:
-        st.metric("AI 체력군", cluster_label)
-
-    left, right = st.columns(2)
-    with left:
-        st.markdown(
-            f"""
-            <div class="phone-card">
-                <div class="phone-badge">나의 AI 체력 진단</div>
-                <h4 style="margin:0 0 10px 0;">현재 상태: {cluster_label}</h4>
-                <p style="margin:0;color:#475467;line-height:1.8;">
-                    키 {height_cm}cm, 몸무게 {weight_kg}kg, 셔틀런 {int(shuttle_runs)}회를 기준으로
-                    개인 체력군을 시뮬레이션한 결과입니다.
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with right:
-        st.markdown(
-            f"""
-            <div class="phone-card">
-                <div class="phone-badge">4주 맞춤 운동 플랜</div>
-                <h4 style="margin:0 0 10px 0;">{title_1}</h4>
-                <p style="margin:0;color:#475467;line-height:1.8;">{body_1}</p>
-                <p style="margin:12px 0 0 0;color:#475467;line-height:1.8;"><b>{title_2}</b><br>{body_2}</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-
-page_map = {
-    "도내 체력 현황 요약": render_overview,
-    "체력 취약망 지도 (Heatmap)": render_heatmap_page,
-    "체격 보정 평가 모델 (Allometric)": render_allometric_page,
-    "AI 다차원 군집 분석": render_cluster_page,
-    "종목/학년별 상세 통계": render_detail_page,
-    "집단별 FITT 처방": render_prescription_page,
-    "학교별 교육 프로그램 추천": render_school_recommendation_page,
-    "체육 강사 우선 배치망": render_teacher_priority_page,
-    "지역별 예산 집행 타당성": render_budget_page,
-    "나의 AI 체력 진단": render_b2c_page,
-    "4주 맞춤 운동 플랜 발급": render_b2c_page,
-}
-
-page_map[current_page]()
+    st.dataframe(priority.head(50), use_container_width=True
