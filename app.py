@@ -1313,7 +1313,7 @@ current_page = st.session_state["current_page"]
 st.markdown(
     """
     <div class="top-header">
-        <div class="breadcrumb-nav">교육행정 &gt; <b>PAPS CARE+ Intelligence</b></div>
+        <div class="breadcrumb-nav">학교체육 &gt;
     </div>
     """,
     unsafe_allow_html=True,
@@ -1321,7 +1321,7 @@ st.markdown(
 
 st.markdown(
     f"""
-    <div class="breadcrumb">교육행정 &gt; <span>{current_page}</span></div>
+    <div class="breadcrumb">학교체육 &gt; <span>{current_page}</span></div>
     <div class="page-title">🏃 PAPS CARE+</div>
     """,
     unsafe_allow_html=True,
@@ -1330,7 +1330,6 @@ st.markdown(
 st.markdown(
     """
     <div class="notice-card">
-        <b>PAPS CARE+ Intelligence</b><br>
         본 서비스는 학교알리미 교육 공공데이터와 국민체력100 실측 데이터를 활용하여 학교 및 지역 단위의 체력 현황을 분석하는 AI 기반 지능형 대시보드이다. 국민체력100 데이터를 기반으로 알로메트릭 스케일링을 적용해 체격 요인에 따른 점수 편향을 보정하고, 강원특별자치도 내 체력 취약 영역 진단, 맞춤형 FITT 운동 처방, 체육 교육 개선 및 정책 의사결정에 활용 가능한 정보를 제공한다.
     </div>
     """,
