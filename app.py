@@ -59,23 +59,16 @@ html, body, [class*="css"], .stApp {
 }
 
 .sidebar-group {
-    margin-top: 18px;
+    margin-top: 20px;
     padding: 0 12px;
 }
 
 .sidebar-section {
-    font-size: 11px;
-    font-weight: 700;
-    color: #7b8794 !important;
-    letter-spacing: 0.04em;
-    margin: 12px 0 10px 0;
-}
-
-.sidebar-hint {
-    font-size: 12px;
-    color: #98a2b3;
-    line-height: 1.6;
-    padding: 0 12px 10px 12px;
+    font-size: 14px;
+    font-weight: 800;
+    color: #344054 !important;
+    letter-spacing: 0.01em;
+    margin: 18px 0 12px 0;
 }
 
 .block-container {
@@ -116,8 +109,8 @@ html, body, [class*="css"], .stApp {
 }
 
 .page-title {
-    font-size: 24px;
-    font-weight: 700;
+    font-size: 26px;
+    font-weight: 800;
     color: #1a2233;
     margin-bottom: 18px;
     letter-spacing: -0.01em;
@@ -150,27 +143,6 @@ html, body, [class*="css"], .stApp {
     box-shadow: 0 2px 12px rgba(0,0,0,0.07);
     overflow: hidden;
     border: 1px solid #eef1f5;
-}
-
-.filter-panel {
-    background: #ffffff;
-    border: 1px solid #e9edf3;
-    border-radius: 14px;
-    padding: 16px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
-    margin-bottom: 18px;
-}
-
-.filter-panel h3 {
-    margin: 0 0 6px 0;
-    font-size: 16px;
-    font-weight: 700;
-}
-
-.filter-panel p {
-    margin: 0 0 14px 0;
-    font-size: 13px;
-    color: #667085;
 }
 
 .report-card {
@@ -436,7 +408,7 @@ def default_filter_state():
     }
 
 
-def render_filter_panel(df, meta, key_prefix, include_axis=True):
+def render_filter_controls(df, meta, key_prefix, include_axis=True):
     if f"{key_prefix}_filters" not in st.session_state:
         st.session_state[f"{key_prefix}_filters"] = default_filter_state()
 
@@ -447,54 +419,20 @@ def render_filter_panel(df, meta, key_prefix, include_axis=True):
     if state["y_ax"] not in metric_options:
         state["y_ax"] = metric_options[1 if len(metric_options) > 1 else 0]
 
-    st.markdown(
-        """
-        <div class="filter-panel">
-            <h3>화면별 분석 필터</h3>
-            <p>이 화면에 필요한 조건만 바로 조정할 수 있도록 필터를 본문 안으로 옮겼습니다.</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
+    st.markdown('<div class="panel-card">', unsafe_allow_html=True)
     row1 = st.columns(5)
     with row1[0]:
-        years = st.multiselect(
-            "연도",
-            sorted(df["연도"].dropna().unique()),
-            default=state["years"],
-            key=f"{key_prefix}_years",
-        )
+        years = st.multiselect("연도", sorted(df["연도"].dropna().unique()), default=state["years"], key=f"{key_prefix}_years")
     with row1[1]:
-        regions = st.multiselect(
-            "시·군",
-            sorted(df["시군"].dropna().unique()),
-            default=state["regions"],
-            key=f"{key_prefix}_regions",
-        )
+        regions = st.multiselect("시·군", sorted(df["시군"].dropna().unique()), default=state["regions"], key=f"{key_prefix}_regions")
     with row1[2]:
-        grades = st.multiselect(
-            "학년",
-            sorted(df["학년"].dropna().unique()),
-            default=state["grades"],
-            key=f"{key_prefix}_grades",
-        )
+        grades = st.multiselect("학년", sorted(df["학년"].dropna().unique()), default=state["grades"], key=f"{key_prefix}_grades")
     with row1[3]:
-        genders = st.multiselect(
-            "성별",
-            sorted(df["성별"].dropna().unique()),
-            default=state["genders"],
-            key=f"{key_prefix}_genders",
-        )
+        genders = st.multiselect("성별", sorted(df["성별"].dropna().unique()), default=state["genders"], key=f"{key_prefix}_genders")
     with row1[4]:
         school_base_df = apply_filters(df, years, regions, grades, genders, [])
         school_options = sorted(school_base_df["순수학교명"].dropna().unique())
-        schools = st.multiselect(
-            "학교",
-            school_options,
-            default=[v for v in state["schools"] if v in school_options],
-            key=f"{key_prefix}_schools",
-        )
+        schools = st.multiselect("학교", school_options, default=[v for v in state["schools"] if v in school_options], key=f"{key_prefix}_schools")
 
     x_ax = state["x_ax"]
     y_ax = state["y_ax"]
@@ -507,6 +445,7 @@ def render_filter_panel(df, meta, key_prefix, include_axis=True):
             y_ax = st.selectbox("수직축", metric_options, index=metric_options.index(state["y_ax"]), key=f"{key_prefix}_y")
         with row2[2]:
             n_cl = st.slider("군집 수", 2, 4, state["clusters"], key=f"{key_prefix}_clusters")
+    st.markdown("</div>", unsafe_allow_html=True)
 
     state.update(
         {
@@ -593,7 +532,6 @@ def build_map_df(cluster_source):
     map_df = cluster_source.copy()
     map_df["lat"] = map_df["시군"].apply(lambda value: get_coords(value)[0])
     map_df["lon"] = map_df["시군"].apply(lambda value: get_coords(value)[1])
-
     weight_map = {
         "고위험군": 10,
         "관리 필요군": 8,
@@ -627,18 +565,14 @@ def render_heatmap(cluster_source):
         },
         color_continuous_scale=[
             [0.00, "rgba(44,62,140,0.00)"],
-            [0.20, "rgba(52,77,181,0.55)"],
-            [0.45, "rgba(71,95,204,0.78)"],
-            [0.65, "rgba(232,125,56,0.84)"],
-            [0.85, "rgba(245,155,84,0.94)"],
+            [0.22, "rgba(52,77,181,0.55)"],
+            [0.48, "rgba(71,95,204,0.78)"],
+            [0.72, "rgba(232,125,56,0.88)"],
             [1.00, "rgba(255,186,111,1.00)"],
         ],
     )
-    city_points = (
-        map_df.groupby("시군", as_index=False)[["lat", "lon", "weight"]]
-        .mean()
-        .sort_values("weight", ascending=False)
-    )
+
+    city_points = map_df.groupby("시군", as_index=False)[["lat", "lon", "weight"]].mean()
     fig.add_trace(
         go.Scattermapbox(
             lat=city_points["lat"],
@@ -646,11 +580,12 @@ def render_heatmap(cluster_source):
             mode="markers+text",
             text=city_points["시군"],
             textposition="top center",
-            marker=dict(size=10, color="#233a8b", opacity=0.72),
+            marker=dict(size=9, color="#233a8b", opacity=0.70),
             hoverinfo="skip",
             showlegend=False,
         )
     )
+
     fig.add_annotation(
         x=0.98,
         y=0.96,
@@ -658,21 +593,38 @@ def render_heatmap(cluster_source):
         yref="paper",
         xanchor="right",
         yanchor="top",
+        text="<b>취약 체력 밀집도</b>",
+        showarrow=False,
+        align="left",
+        bgcolor="rgba(255,255,255,0.95)",
+        bordercolor="rgba(210,215,225,0.9)",
+        borderwidth=1,
+        borderpad=10,
+        font=dict(size=12, color="#1a2233", family="Noto Sans KR"),
+    )
+    fig.add_annotation(
+        x=0.98,
+        y=0.89,
+        xref="paper",
+        yref="paper",
+        xanchor="right",
+        yanchor="top",
         text=(
-            "<b>취약 체력 밀집도</b><br>"
-            "<span style='color:#f59b54'>높음</span> · "
-            "<span style='color:#334db5'>낮음</span>"
+            "<span style='color:#ffba6f'>매우 높음</span><br>"
+            "<span style='color:#e87d38'>높음</span><br>"
+            "<span style='color:#475fcc'>보통</span><br>"
+            "<span style='color:#233a8b'>낮음</span>"
         ),
         showarrow=False,
         align="left",
         bgcolor="rgba(255,255,255,0.95)",
         bordercolor="rgba(210,215,225,0.9)",
         borderwidth=1,
-        borderpad=12,
-        font=dict(size=12, color="#1a2233", family="Noto Sans KR"),
+        borderpad=10,
+        font=dict(size=11, color="#1a2233", family="Noto Sans KR"),
     )
     fig.update_layout(
-        height=600,
+        height=620,
         margin=dict(t=0, b=0, l=0, r=0),
         coloraxis_showscale=False,
         paper_bgcolor="rgba(0,0,0,0)",
@@ -704,7 +656,7 @@ def render_scatter(cluster_source, raw_x, raw_y, x_ax, y_ax):
         textfont=dict(size=10, color="#254258"),
     )
     fig.update_layout(
-        height=600,
+        height=620,
         margin=dict(t=10, b=10, l=10, r=10),
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
@@ -720,8 +672,7 @@ def set_page(page_name):
 
 
 def render_nav_button(page_name):
-    current_page = st.session_state.get("current_page")
-    if current_page == page_name:
+    if st.session_state.get("current_page") == page_name:
         st.markdown(f'<div class="menu-active">{page_name}</div>', unsafe_allow_html=True)
     else:
         st.button(page_name, key=f"nav_{page_name}", on_click=set_page, args=(page_name,))
@@ -738,10 +689,6 @@ if "current_page" not in st.session_state:
 
 with st.sidebar:
     st.markdown('<div class="sidebar-logo">🏃 PAPS CARE+</div>', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="sidebar-hint">왼쪽은 목차만 두고, 필터는 각 분석 화면 안에서 직접 조정하도록 바꿨습니다.</div>',
-        unsafe_allow_html=True,
-    )
 
     st.markdown('<div class="sidebar-group">', unsafe_allow_html=True)
     st.markdown('<div class="sidebar-section">1. 📊 통합 대시보드 (Overview)</div>', unsafe_allow_html=True)
@@ -789,7 +736,7 @@ st.markdown(
 st.markdown(
     f"""
     <div class="breadcrumb">교육행정 &gt; <span>{current_page}</span></div>
-    <div class="page-title">체육행정</div>
+    <div class="page-title">🏃 PAPS CARE+</div>
     """,
     unsafe_allow_html=True,
 )
@@ -807,7 +754,7 @@ st.markdown(
 
 
 def render_overview():
-    filters = render_filter_panel(raw_df, meta, "overview", include_axis=True)
+    filters = render_filter_controls(raw_df, meta, "overview", include_axis=True)
     result, error = build_clustered_view(raw_df, meta, filters)
     if error:
         st.warning(error)
@@ -829,39 +776,35 @@ def render_overview():
         st.metric("관리 필요 학교", f"{high_risk}개교")
 
     st.markdown("---")
-    left, right = st.columns([1.15, 1])
-    with left:
-        st.markdown('<div class="map-card">', unsafe_allow_html=True)
-        render_heatmap(cluster_source)
-        st.markdown("</div>", unsafe_allow_html=True)
-    with right:
-        st.markdown('<div class="panel-card">', unsafe_allow_html=True)
-        render_scatter(cluster_source, result["raw_x"], result["raw_y"], result["x_ax"], result["y_ax"])
-        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown('<div class="map-card">', unsafe_allow_html=True)
+    render_heatmap(cluster_source)
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+    st.markdown('<div class="panel-card">', unsafe_allow_html=True)
+    render_scatter(cluster_source, result["raw_x"], result["raw_y"], result["x_ax"], result["y_ax"])
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_heatmap_page():
-    filters = render_filter_panel(raw_df, meta, "heatmap", include_axis=True)
+    filters = render_filter_controls(raw_df, meta, "heatmap", include_axis=True)
     result, error = build_clustered_view(raw_df, meta, filters)
     if error:
         st.warning(error)
         return
 
-    st.markdown("#### 취약 체력 지역 히트맵")
-    st.caption("지도는 더 밝고 명확한 바탕지도를 사용하고, 시·군 위치 점을 함께 표시해 지역 식별성을 높였습니다.")
-    left, right = st.columns([1.15, 1])
-    with left:
-        st.markdown('<div class="map-card">', unsafe_allow_html=True)
-        render_heatmap(result["cluster_source"])
-        st.markdown("</div>", unsafe_allow_html=True)
-    with right:
-        st.markdown('<div class="panel-card">', unsafe_allow_html=True)
-        render_scatter(result["cluster_source"], result["raw_x"], result["raw_y"], result["x_ax"], result["y_ax"])
-        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("#### 체력 취약망 지도")
+    st.caption("히트맵과 산포도를 위아래로 배치해 각각 더 크게 볼 수 있도록 구성했습니다.")
+    st.markdown('<div class="map-card">', unsafe_allow_html=True)
+    render_heatmap(result["cluster_source"])
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+    st.markdown('<div class="panel-card">', unsafe_allow_html=True)
+    render_scatter(result["cluster_source"], result["raw_x"], result["raw_y"], result["x_ax"], result["y_ax"])
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_allometric_page():
-    filters = render_filter_panel(raw_df, meta, "allometric", include_axis=True)
+    filters = render_filter_controls(raw_df, meta, "allometric", include_axis=True)
     result, error = build_clustered_view(raw_df, meta, filters)
     if error:
         st.warning(error)
@@ -871,19 +814,13 @@ def render_allometric_page():
     allometric_df = result["cluster_source"].copy()
     allometric_df["체격 보정 기준치"] = allometric_df[result["raw_x"]].abs().fillna(allometric_df[result["raw_x"]].mean()).clip(lower=1)
     allometric_df["보정 심폐지표"] = allometric_df[result["raw_y"]] / (allometric_df["체격 보정 기준치"] ** 0.33)
-    fig = px.scatter(
-        allometric_df,
-        x=result["raw_y"],
-        y="보정 심폐지표",
-        color="유형",
-        title="원점수 대비 체격 보정 점수 비교",
-    )
+    fig = px.scatter(allometric_df, x=result["raw_y"], y="보정 심폐지표", color="유형", title="원점수 대비 체격 보정 점수 비교")
     fig.update_layout(height=560, plot_bgcolor="white", paper_bgcolor="white")
     st.plotly_chart(fig, use_container_width=True)
 
 
 def render_cluster_page():
-    filters = render_filter_panel(raw_df, meta, "cluster", include_axis=True)
+    filters = render_filter_controls(raw_df, meta, "cluster", include_axis=True)
     result, error = build_clustered_view(raw_df, meta, filters)
     if error:
         st.warning(error)
@@ -896,10 +833,8 @@ def render_cluster_page():
 
 
 def render_detail_page():
-    filters = render_filter_panel(raw_df, meta, "detail", include_axis=False)
-    filtered_df = apply_filters(
-        raw_df, filters["years"], filters["regions"], filters["grades"], filters["genders"], filters["schools"]
-    )
+    filters = render_filter_controls(raw_df, meta, "detail", include_axis=False)
+    filtered_df = apply_filters(raw_df, filters["years"], filters["regions"], filters["grades"], filters["genders"], filters["schools"])
     if filtered_df.empty:
         st.warning("선택한 조건에 맞는 데이터가 없습니다.")
         return
@@ -915,7 +850,7 @@ def render_detail_page():
 
 
 def render_prescription_page():
-    filters = render_filter_panel(raw_df, meta, "prescription", include_axis=True)
+    filters = render_filter_controls(raw_df, meta, "prescription", include_axis=True)
     result, error = build_clustered_view(raw_df, meta, filters)
     if error:
         st.warning(error)
@@ -945,7 +880,7 @@ def render_prescription_page():
 
 
 def render_school_recommendation_page():
-    filters = render_filter_panel(raw_df, meta, "school_rec", include_axis=True)
+    filters = render_filter_controls(raw_df, meta, "school_rec", include_axis=True)
     result, error = build_clustered_view(raw_df, meta, filters)
     if error:
         st.warning(error)
@@ -955,14 +890,11 @@ def render_school_recommendation_page():
     if risk_schools.empty:
         st.info("현재 조건에서는 추천 대상 학교가 없습니다.")
         return
-    st.dataframe(
-        risk_schools[["순수학교명", "시군", "연도", "학년", "성별", "유형"]].head(50),
-        use_container_width=True,
-    )
+    st.dataframe(risk_schools[["순수학교명", "시군", "연도", "학년", "성별", "유형"]].head(50), use_container_width=True)
 
 
 def render_teacher_priority_page():
-    filters = render_filter_panel(raw_df, meta, "teacher_priority", include_axis=True)
+    filters = render_filter_controls(raw_df, meta, "teacher_priority", include_axis=True)
     result, error = build_clustered_view(raw_df, meta, filters)
     if error:
         st.warning(error)
@@ -976,7 +908,7 @@ def render_teacher_priority_page():
 
 
 def render_budget_page():
-    filters = render_filter_panel(raw_df, meta, "budget", include_axis=True)
+    filters = render_filter_controls(raw_df, meta, "budget", include_axis=True)
     result, error = build_clustered_view(raw_df, meta, filters)
     if error:
         st.warning(error)
